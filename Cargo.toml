@@ -30,7 +30,7 @@ machine-uid = "0.5"
 protobuf = { version = "3.2", features = ["with-bytes"] }
 protoc-bin-vendored = "3.0"
 rand = "0.8"
-reqwest = { version = "0.12", default-features = false, features = ["brotli", "cookies", "gzip", "json", "macos-system-configuration", "native-tls", "stream"] }
+reqwest = { version = "0.12", default-features = false, features = ["brotli", "cookies", "gzip", "json", "macos-system-configuration", "rustls-tls-webpki-roots", "stream"] }
 semver = "1.0"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
@@ -39,7 +39,7 @@ serde_with = { version = "3.8", default-features = false, features = ["base64", 
 sysinfo = { version = "0.31", default-features = false, features = ["system"] }
 thiserror = "1.0"
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "signal", "time"] }
-tokio-tungstenite = { version = "0.23", features = ["native-tls"] }
+tokio-tungstenite = { version = "0.23", features = ["rustls-tls-webpki-roots"] }
 toml = "0.8"
 url = "2.3"
 uuid = { version = "1.2", features = ["fast-rng", "serde", "v4", "v5"] }
