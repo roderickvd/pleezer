@@ -60,4 +60,10 @@ jobs:
     - name: Cross-compile for ${{ matrix.target }} on Rust beta
       run: |
         rustup target add ${{ matrix.target }}
-        cargo build --verbose --target ${{ matrix.target }}
+        cargo build --release --verbose --target ${{ matrix.target }}
+
+    - name: Upload compiled binaries
+      uses: actions/upload-artifact@v3
+      with:
+        name: binaries-${{ matrix.target }}
+        path: target/${{ matrix.target }}/release/
