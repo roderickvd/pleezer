@@ -60,7 +60,7 @@ serde_with = { version = "3.8", default-features = false, features = [
     "std",
 ] }
 stream-download = { version = "0.9", features = ["reqwest-native-tls"] }
-sysinfo = { version = "0.31", default-features = false, features = ["system"] }
+sysinfo = { version = "0.32", default-features = false, features = ["system"] }
 tempfile = "3"
 thiserror = "1.0"
 time = "0.3"
