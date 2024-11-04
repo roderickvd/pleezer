@@ -2205,9 +2205,9 @@ dependencies = [
 
 [[package]]
 name = "stream-download"
-version = "0.9.0"
+version = "0.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3477aa8f472c758e73aff6621f24bf5eb4caca3d12b64057e0d72827427e8785"
+checksum = "35c645211b6de578c343115d76a5e68e56b75c6f49834b687f90978b6a258e93"
 dependencies = [
  "bytes",
  "educe",
