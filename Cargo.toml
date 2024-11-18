@@ -19,7 +19,7 @@ maintenance = { status = "actively-developed" }
 base64 = "0.22"
 blowfish = "0.9"
 cbc = "0.1"
-clap = { version = "4.0", features = ["cargo", "derive", "env", "wrap_help"] }
+clap = { version = "4.5", features = ["cargo", "derive", "env", "wrap_help"] }
 cpal = "0.15"
 env_logger = { version = "0.11", default-features = false, features = [
     "auto-color",
