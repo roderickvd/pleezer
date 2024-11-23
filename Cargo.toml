@@ -97,6 +97,38 @@ protoc-bin-vendored = "3"
 lto = true
 codegen-units = 1
 
+[package.metadata.deb]
+copyright = "2024, Roderick van Domburg"
+depends = "libasound2"
+section = "sound"
+priority = "optional"
+assets = [
+    [
+        "target/release/pleezer",
+        "usr/bin/",
+        "755",
+    ],
+    [
+        "README.md",
+        "usr/share/doc/pleezer/README.md",
+        "644",
+    ],
+    [
+        "LICENSE.md",
+        "usr/share/doc/pleezer/LICENSE.md",
+        "644",
+    ],
+    [
+        "secrets.toml.example",
+        "usr/share/doc/pleezer/secrets.toml.example",
+        "644",
+    ],
+]
+extended-description = """\
+A headless streaming player built around the Deezer Connect protocol. \
+Enables streaming from Deezer to any Linux system without a graphical interface, \
+making it ideal for DIY setups, server-based systems, or custom integrations."""
+
 [package.metadata.docs.rs]
 # Disable documentation build on docs.rs
 # Remove this section when ready to publish documentation

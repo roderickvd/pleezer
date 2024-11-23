@@ -8,6 +8,7 @@ and [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/).
 ## [Unreleased]
 
 ### Added
+- [chore] Add Debian package metadata
 
 ### Changed
 - [protocol] Parse JSON as 64-bit and truncate internally
