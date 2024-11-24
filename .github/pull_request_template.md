@@ -1,12 +1,3 @@
----
-name: Pull Request
-about: Submit a pull request to contribute to the project
-title: ''
-labels: ''
-assignees: roderickvd
-
----
-
 ## Description
 
 A clear and concise description of what this pull request does. Include any relevant context or background information.
