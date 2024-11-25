@@ -115,7 +115,7 @@ Your music will start playing on the selected device.
     pleezer -d "?"
 
     # Use a specific device, formatted as:
-    # "[<host>][:<device>][:<sample rate>][:<sample format>]" (case-insensitive)
+    # "[<host>][|<device>][|<sample rate>][|<sample format>]" (case-insensitive)
     #
     # All fields are optional:
     # - If you don't specify a host, it will use the system default host.
@@ -123,13 +123,13 @@ Your music will start playing on the selected device.
     # - If you don't specify a sample rate, it will use the device default sample rate.
     # - If you don't specify a sample format, it will use the device default sample format.
     pleezer -d "CoreAudio"
-    pleezer -d "CoreAudio:Yggdrasil+"
-    pleezer -d "CoreAudio:Yggdrasil+:44100"
-    pleezer -d "CoreAudio:Yggdrasil+:44100:f32"
+    pleezer -d "CoreAudio|Yggdrasil+"
+    pleezer -d "CoreAudio|Yggdrasil+|44100"
+    pleezer -d "CoreAudio|Yggdrasil+|44100|f32"
 
-    # Some more advanced examples, showing you can omit fields as long as you include the colons:
-    pleezer -d ":yggdrasil+"    # The Yggdrasil+ device (case-insensitive)
-    pleezer -d "::44100"        # The first device to support 44100 Hz
+    # Some more advanced examples, showing you can omit fields as long as you include the pipes:
+    pleezer -d "|yggdrasil+"    # The Yggdrasil+ device (case-insensitive)
+    pleezer -d "||44100"        # The first device to support 44100 Hz
     ```
 
     Deezer streams audio at 44100 Hz exclusively. Sampling rates other than

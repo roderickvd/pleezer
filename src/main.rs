@@ -44,7 +44,7 @@ struct Args {
 
     /// Select the audio output device
     ///
-    /// Format: [<host>][:<device>][:<sample rate>][:<sample format>]
+    /// Format: [<host>][|<device>][|<sample rate>][|<sample format>]
     /// Use "?" to list available devices.
     /// If omitted, uses the system default output device.
     #[arg(short, long, default_value = None, env = "PLEEZER_DEVICE")]

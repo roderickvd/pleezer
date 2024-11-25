@@ -19,6 +19,7 @@ and [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/).
 
 ### Fixed
 - [config] Hexademical base does not correlate to key length
+- [player] Use pipe separator in device specs for ALSA compatibility
 - [repo] Fix pull request template format
 
 ### Security

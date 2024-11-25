@@ -145,10 +145,10 @@ impl Player {
     fn open_sink(device: &str) -> Result<(rodio::Sink, rodio::OutputStream)> {
         let (stream, handle) = {
             // The device string has the following format:
-            // [<host>][:<device>][:<sample rate>:<sample format>]
+            // "[<host>][|<device>][|<sample rate>][|<sample format>]" (case-insensitive)
             // From left to right, the fields are optional, but each field
             // depends on the preceding fields being specified.
-            let mut components = device.split(':');
+            let mut components = device.split('|');
 
             // The host is the first field.
             let host = match components.next() {
@@ -267,7 +267,7 @@ impl Player {
                             if let Ok(device_name) = device.name() {
                                 let max_sample_rate = config.with_max_sample_rate();
                                 let mut line = format!(
-                                    "{}:{}:{}:{}",
+                                    "{}|{}|{}|{}",
                                     host.id().name(),
                                     device_name,
                                     max_sample_rate.sample_rate().0,
