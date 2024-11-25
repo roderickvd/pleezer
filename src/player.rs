@@ -243,10 +243,26 @@ impl Player {
         Ok((sink, stream))
     }
 
+    /// The list of supported sample rates.
+    ///
+    /// This list is used to filter out unreasonable sample rates.
+    /// Common sample rates in Hz:
+    /// * 44100 - CD audio, most streaming services
+    /// * 48000 - Professional digital audio, DVDs, most DAWs
+    /// * 88200/96000 - High resolution audio
+    /// * 176400/192000 - Studio quality
+    /// * 352800/384000 - Ultra high definition audio
+    const SAMPLE_RATES: [u32; 8] = [
+        44_100, 48_000, 88_200, 96_000, 176_400, 192_000, 352_800, 384_000,
+    ];
+
     #[must_use]
     pub fn enumerate_devices() -> Vec<String> {
         let hosts = cpal::available_hosts();
-        let mut result = Vec::new();
+
+        // Create a set to store the unique device names.
+        // On Alsa hosts, the same device may otherwise be enumerated multiple times.
+        let mut result = HashSet::new();
 
         // Get the default host, device and config.
         let default_host = cpal::default_host();
@@ -265,31 +281,38 @@ impl Player {
                     if let Ok(configs) = device.supported_output_configs() {
                         for config in configs {
                             if let Ok(device_name) = device.name() {
-                                let max_sample_rate = config.with_max_sample_rate();
-                                let mut line = format!(
-                                    "{}|{}|{}|{}",
-                                    host.id().name(),
-                                    device_name,
-                                    max_sample_rate.sample_rate().0,
-                                    max_sample_rate.sample_format(),
-                                );
+                                for sample_rate in &Self::SAMPLE_RATES {
+                                    if let Some(config) =
+                                        config.try_with_sample_rate(cpal::SampleRate(*sample_rate))
+                                    {
+                                        let mut line = format!(
+                                            "{}|{}|{}|{}",
+                                            host.id().name(),
+                                            device_name,
+                                            config.sample_rate().0,
+                                            config.sample_format(),
+                                        );
 
-                                // Check if this is the default host, device
-                                // and config.
-                                if default_host.id() == host.id()
-                                    && default_device.as_ref().is_some_and(|default_device| {
-                                        default_device
-                                            .name()
-                                            .is_ok_and(|default_name| default_name == device_name)
-                                    })
-                                    && default_config.as_ref().is_some_and(|default_config| {
-                                        *default_config == max_sample_rate
-                                    })
-                                {
-                                    line.push_str(" (default)");
+                                        // Check if this is the default host, device
+                                        // and config.
+                                        if default_host.id() == host.id()
+                                            && default_device.as_ref().is_some_and(
+                                                |default_device| {
+                                                    default_device.name().is_ok_and(
+                                                        |default_name| default_name == device_name,
+                                                    )
+                                                },
+                                            )
+                                            && default_config.as_ref().is_some_and(
+                                                |default_config| *default_config == config,
+                                            )
+                                        {
+                                            line.push_str(" (default)");
+                                        }
+
+                                        result.insert(line);
+                                    }
                                 }
-
-                                result.push(line);
                             }
                         }
                     }
@@ -297,6 +320,8 @@ impl Player {
             }
         }
 
+        let mut result: Vec<_> = result.into_iter().collect();
+        result.sort();
         result
     }
 
