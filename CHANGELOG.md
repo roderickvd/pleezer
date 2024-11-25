@@ -11,6 +11,7 @@ and [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/).
 - [chore] Add Debian package metadata
 
 ### Changed
+- [gateway] Improve error logging for response parsing failures
 - [protocol] Parse JSON as 64-bit and truncate internally
 
 ### Deprecated
