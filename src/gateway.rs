@@ -218,8 +218,23 @@ impl Gateway {
         }
 
         let response = self.http_client.execute(request).await?;
-        let result = response.json::<gateway::Response<T>>().await?;
-        trace!("{}: {result:#?}", T::METHOD);
+        let body = response.text().await?;
+
+        let result: gateway::Response<T> = match serde_json::from_str(&body) {
+            Ok(result) => {
+                trace!("{}: {result:#?}", T::METHOD);
+                result
+            }
+            Err(e) => {
+                if let Ok(json) = serde_json::from_str::<serde_json::Value>(&body) {
+                    trace!("{}: {json:#?}", T::METHOD);
+                } else {
+                    error!("{}: failed parsing response ({e:?})", T::METHOD);
+                    trace!("{body}");
+                }
+                return Err(e.into());
+            }
+        };
 
         Ok(result)
     }
