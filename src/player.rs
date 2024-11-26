@@ -10,9 +10,13 @@ use crate::{
     error::{Error, Result},
     events::Event,
     http,
-    protocol::connect::{
-        contents::{AudioQuality, RepeatMode},
-        Percentage,
+    protocol::{
+        connect::{
+            contents::{AudioQuality, RepeatMode},
+            Percentage,
+        },
+        gateway,
+        media::DEFAULT_MEDIA_URL,
     },
     track::{Track, TrackId},
 };
@@ -84,12 +88,6 @@ pub struct Player {
     media_url: String,
 }
 
-/// The default target volume to normalize to in dB LUFS.
-pub const DEFAULT_GAIN_TARGET_DB: i8 = -15;
-
-/// The default media URL to use for media requests.
-const DEFAULT_MEDIA_URL: &str = "https://media.deezer.com";
-
 impl Player {
     /// Creates a new `Player` with the given `Config`.
     ///
@@ -118,6 +116,9 @@ impl Player {
         sink.append(output);
         sink.pause();
 
+        #[expect(clippy::cast_possible_truncation)]
+        let gain_target_db = gateway::user_data::Gain::default().target as i8;
+
         Ok(Self {
             queue: Vec::new(),
             skip_tracks: HashSet::new(),
@@ -130,7 +131,7 @@ impl Player {
             repeat_mode: RepeatMode::default(),
             shuffle: false,
             normalization: false,
-            gain_target_db: DEFAULT_GAIN_TARGET_DB,
+            gain_target_db,
             event_tx: None,
             playing_since: Duration::ZERO,
             deferred_seek: None,

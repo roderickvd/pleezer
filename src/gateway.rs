@@ -19,6 +19,7 @@ use crate::{
             AudioQuality, UserId,
         },
         gateway::{self, Queue, UserData},
+        media::DEFAULT_MEDIA_URL,
     },
     tokens::UserToken,
 };
@@ -249,7 +250,7 @@ impl Gateway {
     #[must_use]
     pub fn is_expired(&self) -> bool {
         if let Some(data) = &self.user_data {
-            return data.user.options.expiration_timestamp >= data.user.options.timestamp;
+            return data.user.options.expiration_timestamp >= SystemTime::now();
         }
 
         true
@@ -281,10 +282,10 @@ impl Gateway {
     }
 
     /// Whether the user has enabled normalization.
-    pub fn normalization(&self) -> Option<bool> {
+    pub fn normalization(&self) -> bool {
         self.user_data
             .as_ref()
-            .map(|data| data.user.settings.site.player_normalize)
+            .is_some_and(|data| data.user.settings.site.player_normalize)
     }
 
     /// The reference level for normalization.
@@ -292,22 +293,28 @@ impl Gateway {
     /// This function truncates the value to an `i8` because the API could return
     /// a value that is out of bounds.
     #[expect(clippy::cast_possible_truncation)]
-    pub fn target_gain(&self) -> Option<i8> {
-        self.user_data.as_ref().map(|data| {
-            data.gain
-                .target
-                .clamp(i64::from(i8::MIN), i64::from(i8::MAX)) as i8
-        })
+    pub fn target_gain(&self) -> i8 {
+        self.user_data
+            .as_ref()
+            .map(|data| data.gain)
+            .unwrap_or_default()
+            .target
+            .clamp(i64::from(i8::MIN), i64::from(i8::MAX)) as i8
     }
 
     /// The user's account name.
     pub fn user_name(&self) -> Option<&str> {
-        self.user_data.as_ref().map(|data| data.user.name.as_str())
+        self.user_data
+            .as_ref()
+            .map(|data| data.user.name.as_deref().unwrap_or("UNKNOWN"))
     }
 
     // The URL to use for media requests.
-    pub fn media_url(&self) -> Option<&str> {
-        self.user_data.as_ref().map(|data| data.media_url.as_str())
+    pub fn media_url(&self) -> &str {
+        self.user_data
+            .as_ref()
+            .and_then(|data| data.media_url.as_ref())
+            .map_or(DEFAULT_MEDIA_URL, |url| url.as_str())
     }
 
     /// Converts a list of tracks from the Deezer API to a [`Queue`].

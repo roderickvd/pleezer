@@ -7,6 +7,8 @@ use veil::Redact;
 
 use super::connect::AudioQuality;
 
+pub const DEFAULT_MEDIA_URL: &str = "https://media.deezer.com";
+
 #[serde_as]
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Serialize, Debug, Hash)]
 pub struct Request {

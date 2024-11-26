@@ -18,7 +18,7 @@ use crate::{
     error::{Error, ErrorKind, Result},
     events::Event,
     gateway::Gateway,
-    player::{Player, DEFAULT_GAIN_TARGET_DB},
+    player::Player,
     protocol::connect::{
         queue::{self, ContainerType, MixType},
         stream, Body, Channel, Contents, DeviceId, DeviceType, Headers, Ident, Message, Percentage,
@@ -230,8 +230,8 @@ impl Client {
         info!("user casting quality: {audio_quality}");
         self.player.set_audio_quality(audio_quality);
 
-        let normalization = self.gateway.normalization().unwrap_or_default();
-        let gain_target_db = self.gateway.target_gain().unwrap_or(DEFAULT_GAIN_TARGET_DB);
+        let normalization = self.gateway.normalization();
+        let gain_target_db = self.gateway.target_gain();
         info!("volume normalization to {gain_target_db} dB: {normalization}");
         self.player.set_gain_target_db(gain_target_db);
         self.player.set_normalization(normalization);
@@ -240,9 +240,7 @@ impl Client {
             self.player.set_license_token(license_token);
         }
 
-        if let Some(media_url) = self.gateway.media_url() {
-            self.player.set_media_url(media_url);
-        }
+        self.player.set_media_url(self.gateway.media_url());
     }
 
     /// TODO
