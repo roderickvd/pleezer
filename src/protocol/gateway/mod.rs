@@ -8,10 +8,10 @@ pub mod user_radio;
 
 pub use arl::Arl;
 pub use list_data::{ListData, Queue};
-pub use user_data::UserData;
+pub use user_data::{MediaUrl, UserData};
 pub use user_radio::UserRadio;
 
-use std::collections::HashMap;
+use std::{collections::HashMap, ops::Deref, str::FromStr};
 
 use serde::Deserialize;
 use serde_with::serde_as;
@@ -60,4 +60,29 @@ pub struct Paginated<T> {
     pub count: u64,
     pub total: u64,
     pub filtered_count: u64,
+}
+
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Deserialize, Debug, Hash)]
+pub struct StringOrUnknown(pub String);
+
+impl Deref for StringOrUnknown {
+    type Target = String;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl FromStr for StringOrUnknown {
+    type Err = std::convert::Infallible;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(Self(s.to_string()))
+    }
+}
+
+impl Default for StringOrUnknown {
+    fn default() -> Self {
+        Self(String::from("UNKNOWN"))
+    }
 }

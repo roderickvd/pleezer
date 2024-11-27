@@ -24,6 +24,8 @@ and [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/).
 
 ### Fixed
 - [config] Hexademical base does not correlate to key length
+- [gateway] Parse user data without all fields present
+- [gateway] Incorrect user token expiry
 - [player] Use pipe separator in device specs for ALSA compatibility
 - [player] Clean up audio device enumeration output
 - [repo] Fix pull request template format

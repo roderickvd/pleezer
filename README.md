@@ -141,6 +141,11 @@ Your music will start playing on the selected device.
     44100 Hz are not recommended and provided for compatibility only.
     Resampling is done using linear interpolation.
 
+- `--normalize-volume`: Enable volume normalization to maintain consistent volume levels across tracks. Example:
+    ```bash
+    pleezer --normalize-volume
+    ```
+
 - `--no-interruptions`: Prevent other clients from taking over the connection after **pleezer** has connected. By default, interruptions are allowed. Example:
     ```bash
     pleezer --no-interruptions
@@ -286,6 +291,8 @@ esac
 ### Stateless Configuration
 
 **pleezer** operates statelessly and loads user settings, such as normalization and audio quality, when it connects. To apply changes, disconnect and reconnect. This limitation is due to the Deezer Connect protocol.
+
+Note that volume normalization in **pleezer** (set via `--normalize-volume`) is independent from the "Normalize audio" toggle in Deezer apps, which only affects local playback on those devices. The **pleezer** setting is configured at startup and cannot be changed remotely.
 
 Command-line options handle settings that cannot be managed statelessly.
 

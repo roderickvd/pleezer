@@ -1,4 +1,4 @@
-use std::{fs, path::Path, process, time::Duration};
+use std::{env, fs, path::Path, process, time::Duration};
 
 use clap::{command, Parser, ValueHint};
 use log::{debug, error, info, trace, warn, LevelFilter};
@@ -57,6 +57,12 @@ struct Args {
     /// If omitted, uses the system default output device.
     #[arg(short, long, default_value = None, env = "PLEEZER_DEVICE")]
     device: Option<String>,
+
+    /// Enable volume normalization
+    ///
+    /// Normalizes volume across tracks to provide consistent listening levels.
+    #[arg(long, default_value_t = false, env = "PLEEZER_NORMALIZE_VOLUME")]
+    normalize_volume: bool,
 
     /// Prevent other clients from taking over the connection
     ///
@@ -188,6 +194,10 @@ async fn run(args: Args) -> Result<()> {
         return Ok(());
     }
 
+    if let Ok(proxy) = env::var("HTTPS_PROXY") {
+        info!("using proxy: {proxy}");
+    }
+
     let config = {
         // Get the credentials from the secrets file.
         info!("parsing secrets from {}", args.secrets_file);
@@ -293,6 +303,8 @@ async fn run(args: Args) -> Result<()> {
                 .unwrap_or_else(|| app_name.clone()),
 
             interruptions: !args.no_interruptions,
+            normalization: args.normalize_volume,
+
             hook: args.hook,
 
             client_id,

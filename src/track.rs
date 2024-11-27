@@ -10,6 +10,7 @@ use stream_download::{
     StreamDownload, StreamHandle, StreamPhase, StreamState,
 };
 use time::OffsetDateTime;
+use url::Url;
 
 use crate::{
     error::{Error, Result},
@@ -196,7 +197,7 @@ impl Track {
     ];
 
     /// The endpoint for obtaining media sources.
-    const MEDIA_ENDPOINT: &'static str = "/v1/get_url";
+    const MEDIA_ENDPOINT: &'static str = "v1/get_url";
 
     /// Get a HTTP media source for the track.
     ///
@@ -217,7 +218,7 @@ impl Track {
     pub async fn get_medium(
         &self,
         client: &http::Client,
-        media_url: &str,
+        media_url: &Url,
         quality: AudioQuality,
         license_token: impl Into<String>,
     ) -> Result<Medium> {
@@ -249,7 +250,7 @@ impl Track {
 
         // Do not use `client.unlimited` but instead apply rate limiting.
         // This is to prevent hammering the Deezer API in case of deserialize errors.
-        let get_url = format!("{media_url}{}", Self::MEDIA_ENDPOINT).parse::<reqwest::Url>()?;
+        let get_url = media_url.join(Self::MEDIA_ENDPOINT)?;
         let body = serde_json::to_string(&request)?;
         let request = client.post(get_url, body);
         let response = client.execute(request).await?;
@@ -474,9 +475,9 @@ impl From<gateway::ListData> for Track {
         Self {
             id: item.track_id,
             track_token: item.track_token,
-            title: item.title,
-            artist: item.artist,
-            album_title: item.album_title,
+            title: item.title.to_string(),
+            artist: item.artist.to_string(),
+            album_title: item.album_title.to_string(),
             album_cover: item.album_cover,
             duration: item.duration,
             gain: item.gain.map(ToF32::to_f32_lossy),

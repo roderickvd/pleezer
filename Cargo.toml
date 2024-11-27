@@ -75,7 +75,7 @@ tokio = { version = "1", features = [
 tokio-tungstenite = { version = "0.24", features = ["rustls-tls-native-roots"] }
 tokio-util = "0.7"
 toml = "0.8"
-url = "2.3"
+url = { version = "2.5", features = ["serde"] }
 uuid = { version = "1.2", features = ["fast-rng", "serde", "v4", "v5"] }
 veil = "0.2"
 
