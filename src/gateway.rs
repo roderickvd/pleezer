@@ -1,12 +1,12 @@
-use std::{str::FromStr, time::SystemTime};
+use std::time::SystemTime;
 
 use md5::{Digest, Md5};
 use reqwest::{
     self,
     header::{HeaderMap, HeaderValue, AUTHORIZATION, CONTENT_TYPE},
-    Url,
 };
 use serde::Deserialize;
+use url::Url;
 
 use crate::{
     arl::Arl,
@@ -18,8 +18,7 @@ use crate::{
             queue::{self, TrackType},
             AudioQuality, UserId,
         },
-        gateway::{self, Queue, UserData},
-        media::DEFAULT_MEDIA_URL,
+        gateway::{self, MediaUrl, Queue, UserData},
     },
     tokens::UserToken,
 };
@@ -275,17 +274,12 @@ impl Gateway {
     }
 
     /// The [`AudioQuality`] that the user has set for casting.
-    pub fn audio_quality(&self) -> Option<AudioQuality> {
-        self.user_data.as_ref().and_then(|data| {
-            AudioQuality::from_str(&data.user.audio_settings.connected_device_streaming_preset).ok()
-        })
-    }
-
-    /// Whether the user has enabled normalization.
-    pub fn normalization(&self) -> bool {
+    pub fn audio_quality(&self) -> AudioQuality {
         self.user_data
             .as_ref()
-            .is_some_and(|data| data.user.settings.site.player_normalize)
+            .map_or(AudioQuality::default(), |data| {
+                data.user.audio_settings.connected_device_streaming_preset
+            })
     }
 
     /// The reference level for normalization.
@@ -304,17 +298,15 @@ impl Gateway {
 
     /// The user's account name.
     pub fn user_name(&self) -> Option<&str> {
-        self.user_data
-            .as_ref()
-            .map(|data| data.user.name.as_deref().unwrap_or("UNKNOWN"))
+        self.user_data.as_ref().map(|data| data.user.name.as_str())
     }
 
     // The URL to use for media requests.
-    pub fn media_url(&self) -> &str {
+    pub fn media_url(&self) -> Url {
         self.user_data
             .as_ref()
-            .and_then(|data| data.media_url.as_ref())
-            .map_or(DEFAULT_MEDIA_URL, |url| url.as_str())
+            .map_or(MediaUrl::default(), |data| data.media_url.clone())
+            .into()
     }
 
     /// Converts a list of tracks from the Deezer API to a [`Queue`].

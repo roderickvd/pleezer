@@ -3,6 +3,7 @@ use std::{collections::HashSet, sync::Arc, time::Duration};
 use cpal::traits::{DeviceTrait, HostTrait};
 use md5::{Digest, Md5};
 use rodio::Source;
+use url::Url;
 
 use crate::{
     config::Config,
@@ -15,8 +16,7 @@ use crate::{
             contents::{AudioQuality, RepeatMode},
             Percentage,
         },
-        gateway,
-        media::DEFAULT_MEDIA_URL,
+        gateway::{self, MediaUrl},
     },
     track::{Track, TrackId},
 };
@@ -85,7 +85,7 @@ pub struct Player {
     _stream: rodio::OutputStream,
 
     /// The URL to use for media requests.
-    media_url: String,
+    media_url: Url,
 }
 
 impl Player {
@@ -126,11 +126,11 @@ impl Player {
             audio_quality: AudioQuality::default(),
             client,
             license_token: String::new(),
-            media_url: DEFAULT_MEDIA_URL.to_string(),
+            media_url: MediaUrl::default().into(),
             bf_secret,
             repeat_mode: RepeatMode::default(),
             shuffle: false,
-            normalization: false,
+            normalization: config.normalization,
             gain_target_db,
             event_tx: None,
             playing_since: Duration::ZERO,
@@ -372,7 +372,7 @@ impl Player {
             .ok_or_else(|| Error::not_found(format!("track at position {position} not found")))?;
 
         if track.handle().is_none() {
-            let download = tokio::time::timeout(Duration::from_secs(1), async {
+            let download = tokio::time::timeout(Duration::from_secs(3), async {
                 // Start downloading the track.
                 let medium = track
                     .get_medium(
@@ -751,6 +751,9 @@ impl Player {
     }
 
     pub fn set_gain_target_db(&mut self, gain_target_db: i8) {
+        if self.normalization {
+            info!("normalizing volume to {gain_target_db} dB");
+        }
         self.gain_target_db = gain_target_db;
     }
 
@@ -778,7 +781,7 @@ impl Player {
         self.gain_target_db
     }
 
-    pub fn set_media_url(&mut self, url: &str) {
-        self.media_url = url.to_string();
+    pub fn set_media_url(&mut self, url: Url) {
+        self.media_url = url;
     }
 }

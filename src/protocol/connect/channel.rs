@@ -53,6 +53,7 @@ use std::{
     str::FromStr,
 };
 
+use serde::Deserialize;
 use serde_with::{DeserializeFromStr, SerializeDisplay};
 
 use crate::error::Error;
@@ -299,7 +300,8 @@ pub struct Channel {
 /// [`Eq`]: std::cmp::Eq
 /// [`PartialOrd`]: std::cmp::PartialOrd
 /// [`Ord`]: std::cmp::Ord
-#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Copy, Clone, Debug, Deserialize, Hash, PartialEq, Eq, PartialOrd, Ord)]
+#[serde(untagged)]
 pub enum UserId {
     /// A specific Deezer user, identified by a non-zero positive integer.
     ///

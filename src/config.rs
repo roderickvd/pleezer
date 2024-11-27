@@ -63,6 +63,11 @@ pub struct Config {
     /// could not be retrieved.
     pub device_id: Uuid,
 
+    /// Whether to normalize the audio.
+    ///
+    /// By default this is `false`.
+    pub normalization: bool,
+
     /// Whether other clients may take over an existing connection.
     ///
     /// By default this is `true`.

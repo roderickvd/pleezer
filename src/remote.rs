@@ -95,7 +95,7 @@ fn from_now(seconds: Duration) -> Option<tokio::time::Instant> {
 }
 
 impl Client {
-    const NETWORK_TIMEOUT: Duration = Duration::from_secs(1);
+    const NETWORK_TIMEOUT: Duration = Duration::from_secs(2);
     const TOKEN_EXPIRATION_THRESHOLD: Duration = Duration::from_secs(60);
     const REPORTING_INTERVAL: Duration = Duration::from_secs(3);
     const WATCHDOG_RX_TIMEOUT: Duration = Duration::from_secs(10);
@@ -226,15 +226,12 @@ impl Client {
     }
 
     fn set_player_settings(&mut self) {
-        let audio_quality = self.gateway.audio_quality().unwrap_or_default();
+        let audio_quality = self.gateway.audio_quality();
         info!("user casting quality: {audio_quality}");
         self.player.set_audio_quality(audio_quality);
 
-        let normalization = self.gateway.normalization();
         let gain_target_db = self.gateway.target_gain();
-        info!("volume normalization to {gain_target_db} dB: {normalization}");
         self.player.set_gain_target_db(gain_target_db);
-        self.player.set_normalization(normalization);
 
         if let Some(license_token) = self.gateway.license_token() {
             self.player.set_license_token(license_token);
@@ -543,7 +540,17 @@ impl Client {
     }
 
     pub async fn stop(&mut self) {
-        let _drop = self.disconnect().await;
+        if self.is_connected() {
+            if let Err(e) = self.disconnect().await {
+                error!("error disconnecting: {e}");
+            }
+        }
+
+        // Close the event receiver and handle any remaining events.
+        self.event_rx.close();
+        while let Some(event) = self.event_rx.recv().await {
+            self.handle_event(event).await;
+        }
 
         // Cancel any remaining subscriptions not handled by `disconnect`.
         let subscriptions = self.subscriptions.clone();
@@ -592,12 +599,12 @@ impl Client {
                 },
             };
 
-            self.send_message(message).await?;
+            self.send_message(message).await
+        } else {
+            Err(Error::failed_precondition(
+                "playback reporting should have an active connection".to_string(),
+            ))
         }
-
-        Err(Error::failed_precondition(
-            "playback reporting should have an active connection".to_string(),
-        ))
     }
 
     async fn disconnect(&mut self) -> Result<()> {
@@ -1284,7 +1291,7 @@ impl Client {
     fn user_id(&self) -> UserId {
         self.user_token
             .as_ref()
-            .map_or(UserId::Unspecified, |token| UserId::Id(token.user_id))
+            .map_or(UserId::Unspecified, |token| token.user_id)
     }
 
     #[must_use]

@@ -1,13 +1,13 @@
 use std::{
     fmt,
-    num::NonZeroU64,
     time::{Duration, SystemTime},
 };
 
+use crate::protocol::connect::UserId;
+
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct UserToken {
-    // TODO: replace with UserId
-    pub user_id: NonZeroU64,
+    pub user_id: UserId,
     pub token: String,
     pub expires_at: SystemTime,
 }
