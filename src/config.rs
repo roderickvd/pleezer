@@ -3,6 +3,7 @@
 //! This module handles:
 //! * Authentication methods (email/password or ARL)
 //! * Device identification and settings
+//! * Network configuration (interface binding)
 //! * Audio configuration (volume, normalization)
 //! * Track decryption configuration
 //! * API client settings
@@ -13,13 +14,15 @@
 //! use pleezer::config::{Config, Credentials};
 //! use pleezer::arl::Arl;
 //! use pleezer::protocol::connect::Percentage;
+//! use std::net::IpAddr;
 //!
-//! // Configure with ARL authentication and initial volume
+//! // Configure with ARL authentication, initial volume, and specific network binding
 //! let config = Config {
 //!     credentials: Credentials::Arl(arl),
 //!     device_name: "My Player".to_string(),
 //!     normalization: true,
 //!     initial_volume: Some(Percentage::from_percent_f32(50.0)), // Start at 50% volume
+//!     bind: "192.168.1.2".parse().unwrap(), // Bind to specific interface
 //!     // ... other settings ...
 //! };
 //!
@@ -32,6 +35,8 @@
 //!     // ... other settings ...
 //! };
 //! ```
+
+use std::net::IpAddr;
 
 use regex_lite::Regex;
 use uuid::Uuid;
@@ -161,6 +166,9 @@ pub struct Config {
 
     /// Whether to eavesdrop on the network traffic.
     pub eavesdrop: bool,
+
+    /// The address to bind for outgoing connections.
+    pub bind: IpAddr,
 }
 
 impl Config {

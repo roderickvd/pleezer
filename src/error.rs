@@ -885,3 +885,13 @@ impl From<cookie_store::CookieError> for Error {
         }
     }
 }
+
+/// Converts IP address parsing errors to `InvalidArgument`.
+///
+/// Used when an IP address string cannot be parsed into a valid
+/// IPv4 or IPv6 address.
+impl From<std::net::AddrParseError> for Error {
+    fn from(e: std::net::AddrParseError) -> Self {
+        Self::invalid_argument(e)
+    }
+}

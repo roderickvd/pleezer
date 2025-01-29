@@ -7,7 +7,11 @@ and [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/).
 
 ## [Unreleased]
 
+### Added
+- [http] Support binding outgoing connections to specific network interfaces
+
 ### Fixed
+- [http] Fix connection timeouts in dual-stack network environments
 - [player] Fix audio device being held before playback starts
 
 ## [v0.11.1] - 2025-01-27

@@ -100,7 +100,7 @@ const MAX_BACKOFF: Duration = Duration::from_secs(10);
 /// * Authentication (secrets file)
 /// * Device identification (name, type)
 /// * Audio settings (device, normalization)
-/// * Connection behavior (interruptions)
+/// * Connection behavior (interruptions, binding)
 /// * Debug features (logging, eavesdropping)
 ///
 /// All options can be set via environment variables with
@@ -185,6 +185,15 @@ struct Args {
         env = "PLEEZER_EAVESDROP"
     )]
     eavesdrop: bool,
+
+    /// Address to bind outgoing connections to
+    ///
+    /// Defaults to "0.0.0.0" (IPv4 any address) since Deezer services are IPv4-only
+    /// Can be set to a specific IPv4 or IPv6 address to control which network interface
+    /// is used for outgoing connections, for example when using tunneling or specific
+    /// routing requirements.
+    #[arg(long, default_value = "0.0.0.0", env = "PLEEZER_BIND")]
+    bind: String,
 }
 
 /// Initialize logging system.
@@ -459,6 +468,7 @@ async fn run(args: Args) -> Result<ShutdownSignal> {
             bf_secret,
 
             eavesdrop: args.eavesdrop,
+            bind: args.bind.parse()?,
         }
     };
 

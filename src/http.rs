@@ -4,6 +4,7 @@
 //! * Cookie-based session management for authentication
 //! * Persistent login across client restarts
 //! * Request rate limiting to respect API quotas
+//! * Network interface binding for routing control
 //! * Configurable timeouts for connections and reads
 //! * Connection keepalive for performance
 //!
@@ -21,6 +22,14 @@
 //! * Automatic request throttling
 //! * Allows bursts up to the maximum calls per interval
 //! * Requests that would exceed the limit are delayed
+//!
+//! # Network Binding
+//!
+//! Supports binding outgoing connections to specific network interfaces:
+//! * Configurable local IP address binding
+//! * Supports both IPv4 and IPv6 addresses
+//! * Default binding to IPv4 for Deezer compatibility
+//! * Useful for VPN/tunnel routing or multi-homed systems
 //!
 //! # Timeouts
 //!
@@ -175,7 +184,8 @@ impl Client {
             .connect_timeout(Self::CONNECT_TIMEOUT)
             .read_timeout(Self::READ_TIMEOUT)
             .default_headers(headers)
-            .user_agent(&config.user_agent);
+            .user_agent(&config.user_agent)
+            .local_address(config.bind);
 
         if let Some(ref jar) = cookie_jar {
             http_client = http_client.cookie_provider(Arc::clone(jar));
