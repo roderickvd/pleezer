@@ -1383,8 +1383,6 @@ impl Client {
     /// * Updates connection state
     /// * Sets discovery state
     /// * Loads user settings
-    /// * Starts playback device
-    /// * Applies initial volume if configured
     ///
     /// # Arguments
     ///
@@ -1451,14 +1449,7 @@ impl Client {
                 }
 
                 self.user_token = Some(user_token?);
-
                 self.set_player_settings();
-                self.player.start()?;
-
-                if let InitialVolume::Active(initial_volume) = self.initial_volume {
-                    debug!("initial volume: {initial_volume}");
-                    self.player.set_volume(initial_volume)?;
-                }
 
                 return Ok(());
             }
@@ -1902,10 +1893,15 @@ impl Client {
     /// Applies changes to:
     /// * Queue position
     /// * Playback progress (ignores for livestreams)
-    /// * Playback state
+    /// * Playback state (with initial volume application on play)
     /// * Shuffle mode and track order
     /// * Repeat mode
     /// * Volume level (respecting initial volume until client takes control)
+    ///
+    /// Initial volume is applied when:
+    /// * First starting playback
+    /// * Initial volume is active
+    /// * Client hasn't taken control
     ///
     /// Handles error cases gracefully:
     /// * Progress setting failures
@@ -2014,9 +2010,25 @@ impl Client {
         }
 
         if let Some(should_play) = should_play {
-            if let Err(e) = self.player.set_playing(should_play) {
-                error!("error setting playback state: {e}");
-                result = Err(e);
+            match self.player.set_playing(should_play) {
+                Ok(()) => {
+                    if should_play {
+                        if let InitialVolume::Active(initial_volume) = self.initial_volume {
+                            match self.player.set_volume(initial_volume) {
+                                Ok(_) => debug!("initial volume: {initial_volume}"),
+                                Err(e) => {
+                                    error!("error setting initial volume: {e}");
+                                    result = Err(e);
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Err(e) => {
+                    error!("error setting playback state: {e}");
+                    result = Err(e);
+                }
             }
         }
 

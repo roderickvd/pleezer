@@ -113,7 +113,8 @@ pub type SampleFormat = f32;
 ///
 /// Audio device lifecycle:
 /// * Device specification is stored during construction
-/// * Device is configured and opened with `start()`
+/// * Device is opened automatically on first play
+/// * Manual `start()` calls are optional
 /// * Device is closed with `stop()`
 /// * Device state affects method behavior:
 ///   - Most playback operations require an open device
@@ -442,11 +443,13 @@ impl Player {
         Ok((device, config))
     }
 
-    /// Opens and configures the audio output device for playback.
+    /// Opens and configures the audio output device for playback if not already open.
     ///
-    /// Configures the audio device according to the specification provided during construction.
-    /// Must be called before playback operations like `play()` or `set_progress()`.
-    /// The device remains open until `stop()` is called or the player is dropped.
+    /// Called internally when needed (e.g., by `play()`) to initialize the audio device.
+    /// The device remains open until `stop` is called or the player is dropped.
+    ///
+    /// Note: Manual calls to this method are not required as device initialization
+    /// is handled automatically.
     ///
     /// # Errors
     ///
@@ -457,6 +460,10 @@ impl Player {
     /// * Output stream creation fails
     /// * Sink creation fails
     pub fn start(&mut self) -> Result<()> {
+        if self.is_started() {
+            return Ok(());
+        }
+
         debug!("opening output device");
 
         let (device, device_config) = Self::get_device(&self.device)?;
@@ -937,13 +944,19 @@ impl Player {
 
     /// Starts or resumes playback.
     ///
+    /// If audio device is not yet opened, opens it automatically.
     /// Emits a Play event if playback actually starts.
     /// Does nothing if already playing.
     ///
     /// # Errors
     ///
-    /// Returns error if audio device is not open.
+    /// Returns error if:
+    /// * Audio device fails to open
+    /// * Device is no longer available
     pub fn play(&mut self) -> Result<()> {
+        // Ensure the audio device is open.
+        self.start()?;
+
         if !self.is_playing() {
             debug!("starting playback");
             let pos = {
