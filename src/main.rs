@@ -112,8 +112,8 @@ struct Args {
     ///
     /// Keep this file secure and private, as it contains sensitive information
     /// that can grant access to your Deezer account.
-    #[arg(short, long, value_name = "FILE", value_hint = ValueHint::FilePath, default_value_t = String::from("secrets.toml"), env = "PLEEZER_SECRETS_FILE")]
-    secrets_file: String,
+    #[arg(short, long, value_name = "FILE", value_hint = ValueHint::FilePath, default_value_t = String::from("secrets.toml"), env = "PLEEZER_SECRETS")]
+    secrets: String,
 
     /// Set the player's name as shown to Deezer clients
     ///
@@ -159,6 +159,15 @@ struct Args {
     #[arg(long, default_value_t = false, env = "PLEEZER_NO_INTERRUPTIONS")]
     no_interruptions: bool,
 
+    /// Address to bind outgoing connections to
+    ///
+    /// Defaults to "0.0.0.0" (IPv4 any address) since Deezer services are IPv4-only
+    /// Can be set to a specific IPv4 or IPv6 address to control which network interface
+    /// is used for outgoing connections, for example when using tunneling or specific
+    /// routing requirements.
+    #[arg(long, default_value = "0.0.0.0", env = "PLEEZER_BIND")]
+    bind: String,
+
     /// Script to execute when events occur
     #[arg(long, value_hint = ValueHint::ExecutablePath, env = "PLEEZER_HOOK")]
     hook: Option<String>,
@@ -185,15 +194,6 @@ struct Args {
         env = "PLEEZER_EAVESDROP"
     )]
     eavesdrop: bool,
-
-    /// Address to bind outgoing connections to
-    ///
-    /// Defaults to "0.0.0.0" (IPv4 any address) since Deezer services are IPv4-only
-    /// Can be set to a specific IPv4 or IPv6 address to control which network interface
-    /// is used for outgoing connections, for example when using tunneling or specific
-    /// routing requirements.
-    #[arg(long, default_value = "0.0.0.0", env = "PLEEZER_BIND")]
-    bind: String,
 }
 
 /// Initialize logging system.
@@ -270,7 +270,7 @@ fn init_logger(config: &Args) {
 ///
 /// # Arguments
 ///
-/// * `secrets_file` - Path to the secrets file
+/// * `secrets` - Path to the secrets file
 ///
 /// # Errors
 ///
@@ -279,21 +279,21 @@ fn init_logger(config: &Args) {
 /// * File exceeds size limit
 /// * Content isn't valid UTF-8
 /// * Content isn't valid TOML
-fn parse_secrets(secrets_file: impl AsRef<Path>) -> Result<toml::Value> {
+fn parse_secrets(secrets: impl AsRef<Path>) -> Result<toml::Value> {
     // Prevent out-of-memory condition: secrets file should be small.
-    let attributes = fs::metadata(&secrets_file)?;
+    let attributes = fs::metadata(&secrets)?;
     let file_size = attributes.len();
     if file_size > 1024 {
         return Err(Error::out_of_range(
-            "{secrets_file} too large: {file_size} bytes",
+            "{secrets} too large: {file_size} bytes",
         ));
     }
 
-    let contents = fs::read_to_string(&secrets_file)?;
+    let contents = fs::read_to_string(&secrets)?;
     contents.parse::<toml::Value>().map_err(|e| {
         Error::invalid_argument(format!(
             "{} format invalid: {e}",
-            secrets_file.as_ref().to_string_lossy()
+            secrets.as_ref().to_string_lossy()
         ))
     })
 }
@@ -350,8 +350,8 @@ async fn run(args: Args) -> Result<ShutdownSignal> {
 
     let config = {
         // Get the credentials from the secrets file.
-        info!("parsing secrets from {}", args.secrets_file);
-        let secrets = parse_secrets(args.secrets_file)?;
+        info!("parsing secrets from {}", args.secrets);
+        let secrets = parse_secrets(args.secrets)?;
 
         let credentials = match secrets.get("arl").and_then(|value| value.as_str()) {
             Some(arl) => {

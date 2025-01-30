@@ -157,6 +157,11 @@ Your music will then play through **pleezer** while being controlled from your m
 
 ### Command-Line Arguments
 
+- `-s` or `--secrets`: Specify the secrets configuration file. Defaults to `secrets.toml`. Example:
+    ```bash
+    pleezer -s /path/to/secrets.toml
+    ```
+
 - `-n` or `--name`: Set the player's name as it appears to Deezer clients. By default, it uses the system hostname. Example:
     ```bash
     pleezer --name "My Deezer Player"
@@ -247,6 +252,13 @@ Your music will then play through **pleezer** while being controlled from your m
     pleezer --no-interruptions
     ```
 
+- `--bind`: Set the address to bind outgoing connections to. Defaults to "0.0.0.0" (IPv4 any address). Can be useful in dual-stack environments or when specific routing is needed. Example:
+    ```bash
+    pleezer --bind 192.168.1.2     # Bind to specific IPv4 interface
+    pleezer --bind ::1             # Bind to IPv6 loopback
+    ```
+    **Note:** The default IPv4-only binding prevents connection timeouts that can occur in dual-stack environments when attempting IPv6 connections to Deezer's IPv4-only services.
+
 - `--hook`: Specify a script to execute when events occur (see [Hook Scripts](#hook-scripts) for details). Example:
     ```bash
     pleezer --hook /path/to/script.sh
@@ -271,9 +283,14 @@ Your music will then play through **pleezer** while being controlled from your m
 
     **Note:** This option provides only partial insight into client communications. While some messages are echoed across all websockets belonging to a user, most messages are sent on separate websockets specific to each client. For complete traffic analysis, monitoring of all websockets would be required.
 
-- `-s` or `--secrets`: Specify the secrets configuration file. Defaults to `secrets.toml`. Example:
+- `-h` or `--help`: Display help information about command-line options and exit. Example:
     ```bash
-    pleezer -s /path/to/secrets.toml
+    pleezer -h
+    ```
+
+- `--version`: Show **pleezer** version and build information, then exit. Example:
+    ```bash
+    pleezer --version
     ```
 
 - `-h` or `--help`: Display help information about command-line options and exit. Example:

@@ -7,6 +7,9 @@ and [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/).
 
 ## [Unreleased]
 
+### Changed
+- [main] Shortened secrets file parameter to just `secrets` for consistency
+
 ### Added
 - [http] Support binding outgoing connections to specific network interfaces
 
