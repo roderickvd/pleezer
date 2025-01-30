@@ -119,17 +119,18 @@ impl Client {
     const KEEPALIVE_TIMEOUT: Duration = Duration::from_secs(60);
 
     /// Duration to wait for connection establishment.
-    const CONNECT_TIMEOUT: Duration = Duration::from_secs(5);
+    ///
+    /// The timeout needs to be greater than 5 seconds to allow for
+    /// AAAA record resolution timeouts that can occur on Linux.
+    const CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
 
     /// Duration to wait for individual network reads.
     ///
-    /// Reads that take longer than 5 seconds will timeout to:
+    /// Reads that take longer than 2 seconds will timeout to:
     /// * Prevent blocking operations
     /// * Allow faster recovery from network issues
     /// * Maintain responsive streaming
-    ///
-    /// The timeout needs to be long enough to allow for slow hardware and network conditions.
-    const READ_TIMEOUT: Duration = Duration::from_secs(5);
+    const READ_TIMEOUT: Duration = Duration::from_secs(2);
 
     /// Content type for plain text requests.
     ///
