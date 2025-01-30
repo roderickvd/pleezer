@@ -22,7 +22,7 @@
 //!     device_name: "My Player".to_string(),
 //!     normalization: true,
 //!     initial_volume: Some(Percentage::from_percent_f32(50.0)), // Start at 50% volume
-//!     bind: "192.168.1.2".parse().unwrap(), // Bind to specific interface
+//!     bind_address: "192.168.1.2".parse().unwrap(), // Bind to specific interface
 //!     // ... other settings ...
 //! };
 //!
@@ -168,7 +168,7 @@ pub struct Config {
     pub eavesdrop: bool,
 
     /// The address to bind for outgoing connections.
-    pub bind: IpAddr,
+    pub bind_address: IpAddr,
 }
 
 impl Config {

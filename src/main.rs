@@ -468,7 +468,7 @@ async fn run(args: Args) -> Result<ShutdownSignal> {
             bf_secret,
 
             eavesdrop: args.eavesdrop,
-            bind: args.bind.parse()?,
+            bind_address: args.bind.parse()?,
         }
     };
 

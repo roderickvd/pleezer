@@ -186,7 +186,7 @@ impl Client {
             .read_timeout(Self::READ_TIMEOUT)
             .default_headers(headers)
             .user_agent(&config.user_agent)
-            .local_address(config.bind);
+            .local_address(config.bind_address);
 
         if let Some(ref jar) = cookie_jar {
             http_client = http_client.cookie_provider(Arc::clone(jar));
