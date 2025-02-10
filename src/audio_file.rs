@@ -99,8 +99,8 @@ impl AudioFile {
         P: StorageProvider + Sync + 'static,
         P::Reader: Sync,
     {
-        let is_seekable = !track.is_livestream();
         let byte_len = track.file_size();
+        let is_seekable = byte_len.is_some();
 
         let buffered = BufReader::with_capacity(BUFFER_LEN, download);
 
