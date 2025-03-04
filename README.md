@@ -652,10 +652,7 @@ When using **pleezer**, you must comply with [Deezer's Terms of Service](https:/
 - Not attempting to extract or save content for offline use
 - Allowing proper playback reporting for artist monetization
 
-It is your responsibility to thoroughly understand and adhere to Deezer's Terms of Service while using **pleezer**. The project implements several measures to ensure compliance:
-- No decryption keys are included in the code
-- All playback is properly reported to Deezer for accurate artist monetization
-- Only legitimate streaming through the Deezer Connect protocol is supported
+It is your responsibility to thoroughly understand and adhere to Deezer's Terms of Service while using **pleezer**.
 
 ## Security
 
