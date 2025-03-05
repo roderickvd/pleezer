@@ -439,7 +439,7 @@ impl Decoder {
             }
 
             // Assume failure until a packet is successfully decoded.
-            discarded = discarded.saturating_add(1);
+            discarded += 1;
 
             match self.demuxer.next_packet() {
                 Ok(packet) => {
@@ -519,12 +519,16 @@ impl Decoder {
     #[expect(clippy::cast_possible_truncation)]
     #[expect(clippy::cast_sign_loss)]
     fn ts_to_samples(&self, ts: u64) -> Option<usize> {
-        self.decoder.codec_params().time_base.map(|time_base| {
-            (Duration::from(time_base.calc_time(ts)).as_secs_f32()
-                * self.sample_rate.to_f32_lossy()
-                * f32::from(self.channels))
-            .ceil() as usize
-        })
+        if ts == 0 {
+            Some(0)
+        } else {
+            self.decoder.codec_params().time_base.map(|time_base| {
+                (Duration::from(time_base.calc_time(ts)).as_secs_f32()
+                    * self.sample_rate.to_f32_lossy()
+                    * f32::from(self.channels))
+                .ceil() as usize
+            })
+        }
     }
 }
 
