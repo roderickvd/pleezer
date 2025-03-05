@@ -2445,7 +2445,7 @@ impl fmt::Display for Payload {
         } else {
             // Do not Base64 encode empty strings.
             if let Payload::String(s) = self {
-                if s.as_ref().map_or(true, String::is_empty) {
+                if s.as_ref().is_none_or(String::is_empty) {
                     return Ok(());
                 }
             }
