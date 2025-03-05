@@ -123,14 +123,11 @@ impl Client {
 
     /// Duration to wait for individual network requests.
     ///
-    /// Requests that take longer than 10 seconds will timeout to:
+    /// Requests that take longer than 5 seconds will timeout to:
     /// * Prevent blocking operations
     /// * Allow faster recovery from network issues
     /// * Maintain responsive streaming
-    ///
-    // The timeout needs to be greater than 5 seconds to allow for
-    // AAAA record resolution timeouts that can occur on Linux (#52)
-    const READ_TIMEOUT: Duration = Duration::from_secs(10);
+    const READ_TIMEOUT: Duration = Duration::from_secs(5);
 
     /// Content type for plain text requests.
     ///

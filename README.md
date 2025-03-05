@@ -501,6 +501,12 @@ Common issues and solutions:
 - **Volume at maximum when connecting**: Use `--initial-volume` to set a lower starting level
 - **Volume variations between tracks**: Enable `--normalize-volume` for consistent playback levels
 
+### Network Issues
+- **HTTP read timeouts on Raspberry Pi Zero 2W**: Add the following to your `/etc/resolv.conf`:
+```
+options no-aaaa
+```
+
 ### Build Issues
 - **Build fails with older Rust**: **pleezer** requires a recent Rust version. To check your current Rust version:
   ```bash
