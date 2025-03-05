@@ -5,15 +5,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 and [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/).
 
-## [Unreleased]
+## [v0.12.1] - 2025-03-05
+
+### Added
+- [docs] Workaround for AAAA record resolution timeout issues on Raspberry Pi Zero 2W
 
 ### Changed
 - [decoder] Improve seeking accuracy by calculating exact sample offset to target position
+- [http] Revert AAAA record resolution timeout handling (#58)
 
 ### Fixed
 - [build] Enable building on 32-bit ARM by removing vendored protoc compiler dependency (#55)
 - [decoder] Fix channel swap that could occur after seeking
-- [http] Move AAAA record resolution timeout handling from connect to read timeout (#58)
 
 ## [v0.12.0] - 2025-01-31
 
@@ -297,7 +300,8 @@ Initial release of pleezer, a headless streaming player for the Deezer Connect p
 - Debug and trace logging capabilities
 - Command-line interface with various configuration options
 
-[Unreleased]: https://github.com/roderickvd/pleezer/compare/v0.12.0...HEAD
+[Unreleased]: https://github.com/roderickvd/pleezer/compare/v0.12.1...HEAD
+[0.12.1]: https://github.com/roderickvd/pleezer/releases/tag/v0.12.1
 [0.12.0]: https://github.com/roderickvd/pleezer/releases/tag/v0.12.0
 [0.11.1]: https://github.com/roderickvd/pleezer/releases/tag/v0.11.1
 [0.11.0]: https://github.com/roderickvd/pleezer/releases/tag/v0.11.0
