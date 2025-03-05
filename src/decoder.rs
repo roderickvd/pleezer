@@ -512,6 +512,20 @@ impl Decoder {
             }
         }
     }
+
+    /// Converts a timestamp in time base units to the number of samples.
+    ///
+    /// Returns `None` if the decoder is not initialized or if the time base is not available.
+    #[expect(clippy::cast_possible_truncation)]
+    #[expect(clippy::cast_sign_loss)]
+    fn ts_to_samples(&self, ts: u64) -> Option<usize> {
+        self.decoder.codec_params().time_base.map(|time_base| {
+            (Duration::from(time_base.calc_time(ts)).as_secs_f32()
+                * self.sample_rate.to_f32_lossy()
+                * f32::from(self.channels))
+            .ceil() as usize
+        })
+    }
 }
 
 impl rodio::Source for Decoder {
@@ -556,7 +570,12 @@ impl rodio::Source for Decoder {
     /// * Position is beyond stream end
     /// * Stream format doesn't support seeking
     fn try_seek(&mut self, pos: Duration) -> std::result::Result<(), SeekError> {
-        self.demuxer
+        // Save the currently active channel, so we can skip to it after seeking
+        // and prevent accidental channel changes during seeking.
+        let active_channel = self.position % self.channels as usize;
+
+        let seek_res = self
+            .demuxer
             .seek(
                 SeekMode::Accurate,
                 SeekTo::Time {
@@ -569,6 +588,27 @@ impl rodio::Source for Decoder {
         // Seeking is a demuxer operation, so the decoder cannot reliably
         // know when a seek took place. Reset it to avoid audio glitches.
         self.decoder.reset();
+
+        // Force the iterator to decode the next packet.
+        self.position = usize::MAX;
+
+        // Seeking, even in accurate mode, always skips to the next frame boundary just before the
+        // target position. Below we calculate the number of samples to skip to reach the target
+        // position.
+        let mut samples_to_skip = 0;
+
+        // The difference between the required and actual timestamps is in time base units.
+        let time_gap = seek_res.required_ts.saturating_sub(seek_res.actual_ts);
+        if let Some(mut num_samples) = self.ts_to_samples(time_gap) {
+            // Re-align to the first channel.
+            num_samples -= num_samples % self.channels() as usize;
+            samples_to_skip = num_samples;
+        }
+
+        // Finally, fast-forward to the target position and active channel.
+        for _ in 0..(samples_to_skip + active_channel) {
+            self.next();
+        }
 
         Ok(())
     }
@@ -621,7 +661,7 @@ impl Iterator for Decoder {
             .buffer
             .as_ref()
             .and_then(|buf| buf.samples().get(self.position))?;
-        self.position = self.position.checked_add(1)?;
+        self.position += 1;
 
         Some(sample)
     }
