@@ -2168,6 +2168,16 @@ impl Client {
 
                 let player_position = self.player.position();
                 let mut position = player_position;
+                let progress = self.player.progress();
+
+                // If current progress is 100% and there is a track upcoming, then skip this
+                // reporting cycle: the next track will be reported very soon instead. This
+                // prevents some UI glitches.
+                if progress.is_some_and(|progress| progress >= Percentage::ONE_HUNDRED) && self.player.next_track().is_some() {
+                    return Ok(());
+                }
+
+                // If in shuffle mode, find the position of the current track in the shuffled order.
                 if queue.shuffled {
                     position = queue
                         .tracks_order
@@ -2188,11 +2198,11 @@ impl Client {
                     quality: track.quality(),
                     duration: self.player.duration(),
                     buffered: track.buffered(),
-                    progress: self.player.progress(),
                     volume: self.player.volume(),
                     is_playing: self.player.is_playing(),
                     is_shuffle: queue.shuffled,
                     repeat_mode: self.player.repeat_mode(),
+                    progress,
                 };
 
                 let command = self.command(controller.clone(), progress);
