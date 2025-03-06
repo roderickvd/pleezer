@@ -79,7 +79,7 @@ use crate::{
         },
         gateway::{self, MediaUrl},
     },
-    track::{Track, TrackId, DEFAULT_SAMPLE_RATE},
+    track::{Track, TrackId},
     util::{self, ToF32, UNITY_GAIN},
 };
 
@@ -1142,7 +1142,16 @@ impl Player {
 
         info!("setting playlist position to {position}");
 
-        // Clear the sink, which will drop any handles to the current and next tracks.
+        // If we want to skip to the next track, and the current track is fully downloaded, then
+        // fast-forward to the next track. This way we don't need to drop the preload.
+        if position == self.position.saturating_add(1)
+            && self.track().is_some_and(Track::is_complete)
+            && self.set_progress(Percentage::ONE_HUNDRED).is_ok()
+        {
+            return;
+        }
+
+        // Otherwise, clear the sink, which will drop any tracks and their downloads.
         self.clear();
         self.position = position;
     }
@@ -1164,11 +1173,11 @@ impl Player {
         let original_volume = self.ramp_volume(0.0);
 
         if let Ok(sink) = self.sink_mut() {
-            // Don't clear the sink, because that makes Rodio:
+            // Don't *clear* the sink, because that makes Rodio:
             // - drop the entire output queue
             // - pause playback
             //
-            // Instead, signal Rodio to stop which will make it:
+            // Instead, signal Rodio to *stop* which will make it:
             // - drain the output queue (preventing stale audio from playing)
             // - keep the playback state
             //
@@ -1451,79 +1460,64 @@ impl Player {
             })?;
 
             let ratio = progress.as_ratio();
-            if ratio < 1.0 {
-                let mut position = duration.mul_f32(ratio);
-                let minutes = position.as_secs() / 60;
-                let seconds = position.as_secs() % 60;
-                info!(
-                    "seeking {} {track} to {minutes:02}:{seconds:02} ({progress})",
-                    track.typ()
-                );
-
-                // If the requested position is beyond what is buffered, seek to the buffered
-                // position instead. This prevents blocking the player and disconnections.
-                if let Some(buffered) = track.buffered() {
-                    if duration > buffered {
-                        if position > buffered {
-                            position = buffered;
-                        }
-
-                        // Seek to just before the requested position, to be sure that we find the
-                        // frame just before it. This helps prevents decoder errors.
-                        if let Some(frame_duration) = track.codec().map(|codec| {
-                            codec.max_frame_duration(
-                                track.sample_rate.unwrap_or(DEFAULT_SAMPLE_RATE),
-                                track.channels.unwrap_or(track.typ().default_channels()),
-                            )
-                        }) {
-                            position = position.saturating_sub(frame_duration);
-                        }
-
-                        let minutes = position.as_secs() / 60;
-                        let seconds = position.as_secs() % 60;
-                        warn!("limiting seek to {minutes:02}:{seconds:02} due to buffering");
-                    }
-                }
-
-                // Try to seek only if the track has started downloading, otherwise defer the seek.
-                // This prevents stalling the player when seeking in a track that has not started.
-                match track
-                    .handle()
-                    .ok_or_else(|| {
-                        Error::unavailable(format!(
-                            "download of {} {track} not yet started",
-                            track.typ()
-                        ))
-                    })
-                    .and_then(|_| {
-                        self.sink_mut()
-                            .and_then(|sink| sink.try_seek(position).map_err(Into::into))
-                    }) {
-                    Ok(()) => {
-                        // Reset the playing time to zero, as the sink will now reset it also.
-                        self.playing_since = Duration::ZERO;
-                        self.deferred_seek = None;
-                    }
-                    Err(e) => {
-                        if matches!(e.kind, ErrorKind::Unavailable | ErrorKind::Unimplemented) {
-                            // If the current track is not buffered yet, we can't seek.
-                            // In that case, we defer the seek until the track is buffered.
-                            self.deferred_seek = Some(position);
-                        } else {
-                            // If the seek failed for any other reason, we return an error.
-                            return Err(e);
-                        }
-                    }
-                }
+            let mut position = if ratio <= 0.0 {
+                Duration::ZERO
+            } else if ratio >= 1.0 {
+                duration
             } else {
-                // Setting the progress to 1.0 is equivalent to skipping to the next track.
-                // This prevents `UnexpectedEof` when seeking to the end of the track.
-                info!(
-                    "seeking {} {track} to end: skipping to next track",
-                    track.typ()
-                );
-                self.clear();
-                self.go_next();
+                duration.mul_f32(ratio)
+            };
+
+            let minutes = position.as_secs() / 60;
+            let seconds = position.as_secs() % 60;
+            info!(
+                "seeking {} {track} to {minutes:02}:{seconds:02} ({progress})",
+                track.typ()
+            );
+
+            // If the requested position is beyond what is buffered, seek to the buffered
+            // position instead. This prevents blocking the player and disconnections.
+            if !track.is_complete() {
+                if let Some(buffered) = track.buffered() {
+                    if position > buffered {
+                        position = buffered;
+                    }
+
+                    let minutes = position.as_secs() / 60;
+                    let seconds = position.as_secs() % 60;
+                    warn!("limiting seek to {minutes:02}:{seconds:02} due to buffering");
+                }
+            }
+
+            // Try to seek only if the track has started downloading, otherwise defer the seek.
+            // This prevents stalling the player when seeking in a track that has not started.
+            match track
+                .handle()
+                .ok_or_else(|| {
+                    Error::unavailable(format!(
+                        "download of {} {track} not yet started",
+                        track.typ()
+                    ))
+                })
+                .and_then(|_| {
+                    self.sink_mut()
+                        .and_then(|sink| sink.try_seek(position).map_err(Into::into))
+                }) {
+                Ok(()) => {
+                    // Reset the playing time to zero, as the sink will now reset it also.
+                    self.playing_since = Duration::ZERO;
+                    self.deferred_seek = None;
+                }
+                Err(e) => {
+                    if matches!(e.kind, ErrorKind::Unavailable | ErrorKind::Unimplemented) {
+                        // If the current track is not buffered yet, we can't seek.
+                        // In that case, we defer the seek until the track is buffered.
+                        self.deferred_seek = Some(position);
+                    } else {
+                        // If the seek failed for any other reason, we return an error.
+                        return Err(e);
+                    }
+                }
             }
         }
 

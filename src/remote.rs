@@ -1936,8 +1936,10 @@ impl Client {
     ) -> Result<()> {
         let mut result = Ok(());
 
+        let current = self.player.position();
+        let mut target = current;
         if let Some(item) = item {
-            let position = item.position;
+            target = item.position;
 
             // Sometimes Deezer sends a skip message ahead of a queue publication.
             // In this case, we defer setting the position until the queue is published.
@@ -1946,22 +1948,27 @@ impl Client {
                 .as_ref()
                 .is_some_and(|local| queue_id.is_some_and(|remote| local.id == remote))
             {
-                self.set_position(position);
+                self.set_position(target);
             } else {
-                self.deferred_position = Some(position);
+                self.deferred_position = Some(target);
             }
         }
 
-        if let Some(progress) = progress {
-            if self
-                .player
-                .track()
-                .is_some_and(super::track::Track::is_livestream)
-            {
-                trace!("ignoring set_progress for livestream");
-            } else if let Err(e) = self.player.set_progress(progress) {
-                error!("error setting playback position: {e}");
-                result = Err(e);
+        // Only set the track position if it's for the current track. If it's for another track,
+        // then we just skipped to it and we need the player to let it start playing from the
+        // beginning.
+        if target == current {
+            if let Some(progress) = progress {
+                if self
+                    .player
+                    .track()
+                    .is_some_and(super::track::Track::is_livestream)
+                {
+                    trace!("ignoring set_progress for livestream");
+                } else if let Err(e) = self.player.set_progress(progress) {
+                    error!("error setting playback position: {e}");
+                    result = Err(e);
+                }
             }
         }
 
