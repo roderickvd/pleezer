@@ -7,8 +7,12 @@ and [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/).
 
 ## [Unreleased]
 
+### Added
+- [docs] Expanded troubleshooting guide for common issues
+
 ### Fixed
 - [player] Re-use preloaded next track download when skipping to it instead of restarting download
+- [remote] Reduce UI glitches when reporting progress at track end
 
 ## [v0.12.1] - 2025-03-05
 

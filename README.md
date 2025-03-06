@@ -498,14 +498,22 @@ Common issues and solutions:
 - **pleezer won't start**: Make sure you have created a `secrets.toml` file with valid credentials. By default, **pleezer** looks for this file in the current working directory, but you can specify a different location using the `-s` or `--secrets` option. See [Configuring the Secrets File](#configuring-the-secrets-file) for setup instructions.
 
 ### Volume Issues
-- **Volume at maximum when connecting**: Use `--initial-volume` to set a lower starting level
-- **Volume variations between tracks**: Enable `--normalize-volume` for consistent playback levels
+- **Volume at maximum when connecting**: Use `--initial-volume` to set a lower starting level.
+- **Volume variations between tracks**: Enable `--normalize-volume` for consistent playback levels.
+  Note that some tracks do not have gain information, and cannot be normalized.
+
+### Playback Issues
+- **Favorites not playing**: Playing from the favorites list may not work as expected. The official Deezer app has a known bug where it fails to send any commands over the Deezer Connect API.
+- **Unresponsiveness after output device changes**: When the output device changes or is no longer available, **pleezer** currently does not automatically reconnect. Instead, it endlessly prints error messages. You need to restart **pleezer** manually.
 
 ### Network Issues
-- **HTTP read timeouts on Raspberry Pi Zero 2W**: Add the following to your `/etc/resolv.conf`:
-```
-options no-aaaa
-```
+- **pleezer not responding to commands**: Sometimes the controlling Deezer app reports it is connected to **pleezer**, but actually not in sync. Disconnect and reconnect, then try again. If the issue persists, try forcefully quitting and restarting the controlling Deezer app.
+- **HTTP read timeouts resulting from AAAA lookups**: Add the following to your `/etc/resolv.conf`:
+  ```
+  options no-aaaa
+  ```
+
+  This only seems to affect Raspberry Pi Zero 2W devices.
 
 ### Build Issues
 - **Build fails with older Rust**: **pleezer** requires a recent Rust version. To check your current Rust version:
