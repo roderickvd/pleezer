@@ -24,11 +24,12 @@
 //! # Performance
 //!
 //! The decoder is optimized for:
+//! * Fast-path sample retrieval for sequential reads
 //! * Memory efficient buffering (64 KiB minimum, matching Symphonia's requirements)
 //! * Coordinated with `AudioFile` buffer sizes (32 KiB for unencrypted, 2 KiB for encrypted)
 //! * Low allocation overhead (reuses sample buffers)
 //! * Fast initialization through codec-specific handlers
-//! * Optimized CBR MP3 seeking
+//! * Minimal buffer reallocations during format changes
 
 use std::{io, time::Duration};
 
@@ -72,7 +73,6 @@ use crate::{
 ///
 /// Features:
 /// * Multi-format support
-/// * Optimized MP3 CBR seeking
 /// * Buffer reuse for minimal allocations
 /// * Error recovery
 /// * Transparent handling of encrypted and unencrypted streams
@@ -80,6 +80,8 @@ use crate::{
 ///   - Sample rate (defaults to 44.1 kHz)
 ///   - Bits per sample (codec-dependent)
 ///   - Channel count (format/content specific)
+/// * Fast-path optimizations for common operations
+/// * Minimal buffer reallocations during playback
 ///
 /// # Example
 /// ```no_run
@@ -138,7 +140,6 @@ impl Decoder {
     ///
     /// Optimizes decoder initialization by:
     /// * Using format-specific decoders when codec is known
-    /// * Enabling coarse seeking for CBR MP3 content
     /// * Pre-allocating buffers based on format parameters
     /// * Using direct pass-through for unencrypted content
     ///
@@ -549,19 +550,16 @@ impl rodio::Source for Decoder {
     /// Returns the number of samples left in the current decoded frame.
     ///
     /// Returns `None` if no frame is currently buffered.
-    #[inline]
     fn current_frame_len(&self) -> Option<usize> {
         self.buffer.as_ref().map(SampleBuffer::len)
     }
 
     /// Returns the number of channels in the audio stream.
-    #[inline]
     fn channels(&self) -> u16 {
         self.channels
     }
 
     /// Returns the sample rate of the audio stream in Hz.
-    #[inline]
     fn sample_rate(&self) -> u32 {
         self.sample_rate
     }
@@ -569,7 +567,6 @@ impl rodio::Source for Decoder {
     /// Returns the total duration of the audio stream.
     ///
     /// Returns `None` if duration cannot be determined (e.g., for streams).
-    #[inline]
     fn total_duration(&self) -> Option<Duration> {
         self.total_duration
     }
@@ -627,7 +624,7 @@ impl rodio::Source for Decoder {
         let time_gap = seek_res.required_ts.saturating_sub(seek_res.actual_ts);
         if let Some(mut num_samples) = self.ts_to_samples(time_gap) {
             // Re-align to the first channel.
-            num_samples -= num_samples % self.channels() as usize;
+            num_samples -= num_samples % self.channels as usize;
             samples_to_skip = num_samples;
         }
 
@@ -649,6 +646,10 @@ impl Iterator for Decoder {
 
     /// Provides the next audio sample.
     ///
+    /// Uses a fast-path first to check for available samples in the existing buffer,
+    /// only falling back to packet decoding when needed. This approach optimizes for
+    /// the common case where multiple samples are read sequentially from a decoded packet.
+    ///
     /// Handles:
     /// * Automatic buffer refilling
     /// * Packet decoding
@@ -660,13 +661,35 @@ impl Iterator for Decoder {
     /// * Unrecoverable error occurs
     /// * Too many corrupt packets encountered
     fn next(&mut self) -> Option<Self::Item> {
-        // Fill the buffer if it's empty or we've reached its end.
-        if self
-            .buffer
-            .as_ref()
-            .is_none_or(|buffer| self.position >= buffer.len())
-        {
-            if let Err(e) = self.get_next_packet() {
+        // Fast path: Check if buffer exists and has remaining samples
+        if let Some(buffer) = &self.buffer {
+            if self.position < buffer.len() {
+                let sample = buffer.samples()[self.position];
+                self.position += 1;
+                return Some(sample);
+            }
+        }
+
+        // Need to get next packet since we've exhausted the current buffer
+        match self.get_next_packet() {
+            Ok(_) => {
+                // Successfully fetched next packet
+                if let Some(buffer) = &self.buffer {
+                    if !buffer.is_empty() {
+                        // Buffer now has samples - return the first one. This is a bit redundant
+                        // but faster than calling next() recursively.
+                        let sample = buffer.samples()[0];
+                        self.position = 1;
+                        return Some(sample);
+                    }
+                }
+
+                // Empty buffer after successful packet - could be that this packet contains
+                // metadata only. Recursively try again until we hit the end of the stream.
+                self.next()
+            }
+
+            Err(e) => {
                 // Internal buffer *must* be cleared if an error occurs.
                 // Freeing it here ensures that any next iteration will
                 // reinitialize the buffer with the correct parameters.
@@ -679,17 +702,9 @@ impl Iterator for Decoder {
                     error!("{e}");
                 }
 
-                return None;
+                None
             }
         }
-
-        let sample = *self
-            .buffer
-            .as_ref()
-            .and_then(|buf| buf.samples().get(self.position))?;
-        self.position += 1;
-
-        Some(sample)
     }
 
     /// Provides size hints for the number of samples.
