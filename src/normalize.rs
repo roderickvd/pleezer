@@ -1,25 +1,27 @@
 //! Audio normalization through feedforward limiting.
 //!
 //! This module implements a feedforward limiter in the log domain, based on:
-//! Giannoulis, D., Massberg, M., & Reiss, J.D. (2012). Digital Dynamic
-//! Range Compressor Design—A Tutorial and Analysis. Journal of The Audio
-//! Engineering Society, 60, 399-408.
+//! Giannoulis, D., Massberg, M., & Reiss, J.D. (2012). Digital Dynamic Range Compressor Design,
+//! A Tutorial and Analysis. Journal of The Audio Engineering Society, 60, 399-408.
 //!
 //! Features:
 //! * Soft-knee limiting for natural sound
 //! * Decoupled peak detection per channel
 //! * Coupled gain reduction across channels
 //! * Configurable attack/release times
-//! * CPU-efficient processing
+//! * CPU-efficient processing with:
+//!   - Specialized mono implementation
+//!   - Optimized stereo processing
+//!   - Generic multi-channel support
 //!
 //! # Architecture
 //!
 //! The limiter processes audio in these steps:
 //! 1. Initial gain stage
 //! 2. Half-wave rectification and dB conversion
-//! 3. Soft-knee gain computation
+//! 3. Soft-knee gain computation (optimized for typical below-threshold case)
 //! 4. Smoothed peak detection (per channel)
-//! 5. Maximum peak detection across channels
+//! 5. Maximum peak detection across channels (specialized per channel count)
 //! 6. Gain reduction application (coupled across channels)
 //!
 //! # Example
@@ -47,8 +49,9 @@ use crate::util::{self, ToF32, ZERO_DB};
 
 /// Creates a normalized audio filter with configurable limiting.
 ///
-/// The limiter processes each channel independently for envelope detection
-/// but applies gain reduction uniformly across all channels to preserve imaging.
+/// The limiter processes each channel independently for envelope detection but applies gain
+/// reduction uniformly across all channels to preserve imaging. Uses specialized implementations
+/// for mono and stereo audio, with a generic implementation for multi-channel sources.
 ///
 /// # Arguments
 ///
@@ -71,7 +74,6 @@ use crate::util::{self, ToF32, ZERO_DB};
 /// # Returns
 ///
 /// A `Normalize` filter that processes the input audio through the limiter.
-/// State is initialized to zero for all channels.
 pub fn normalize<I>(
     input: I,
     ratio: f32,
@@ -85,31 +87,45 @@ where
     I::Item: Sample,
 {
     let sample_rate = input.sample_rate();
-    let channels = input.channels() as usize;
-
     let attack = duration_to_coefficient(attack, sample_rate);
     let release = duration_to_coefficient(release, sample_rate);
+    let channels = input.channels() as usize;
 
-    Normalize {
-        input,
+    let base = NormalizeBase::new(ratio, threshold, knee_width, attack, release);
 
-        ratio,
-        threshold,
-        knee_width,
-        attack,
-        release,
-
-        normalisation_integrators: vec![ZERO_DB; channels],
-        normalisation_peaks: vec![ZERO_DB; channels],
-        position: 0,
+    match channels {
+        1 => Normalize::Mono(NormalizeMono {
+            input,
+            base,
+            normalisation_integrator: ZERO_DB,
+            normalisation_peak: ZERO_DB,
+        }),
+        2 => Normalize::Stereo(NormalizeStereo {
+            input,
+            base,
+            normalisation_integrators: [ZERO_DB; 2],
+            normalisation_peaks: [ZERO_DB; 2],
+            position: 0,
+        }),
+        n => Normalize::MultiChannel(NormalizeMulti {
+            input,
+            base,
+            normalisation_integrators: vec![ZERO_DB; n],
+            normalisation_peaks: vec![ZERO_DB; n],
+            position: 0,
+        }),
     }
 }
 
 /// Converts a time duration to a smoothing coefficient.
 ///
-/// Used for attack/release filtering:
-/// * Longer times = higher coefficients = slower response
-/// * Shorter times = lower coefficients = faster response
+/// Used for both attack and release filtering. Creates a coefficient that determines how quickly
+/// the limiter responds to level changes:
+/// * Longer times = higher coefficients = slower, smoother response
+/// * Shorter times = lower coefficients = faster, more immediate response
+///
+/// Note: Coefficient is independent of channel count, making it suitable for all normalizer
+/// variants.
 ///
 /// # Arguments
 ///
@@ -128,52 +144,237 @@ fn duration_to_coefficient(duration: Duration, sample_rate: u32) -> f32 {
 ///
 /// Processing stages:
 /// 1. Initial gain scaling by `ratio`
-/// 2. Peak detection above `threshold`
+/// 2. Peak detection above `threshold` (optimized for typical below-threshold case)
 /// 3. Soft-knee limiting over `knee_width`
 /// 4. Independent smoothing with `attack`/`release` filtering per channel
 /// 5. Coupled gain reduction across all channels to preserve imaging
+///
+/// Uses specialized implementations:
+/// * Mono: Direct single-channel processing
+/// * Stereo: Optimized two-channel processing with efficient position tracking
+/// * `MultiChannel`: Generic implementation for other channel counts
 ///
 /// # Type Parameters
 ///
 /// * `I` - Input audio source type
 #[derive(Clone, Debug)]
-pub struct Normalize<I>
+pub enum Normalize<I>
 where
     I: Source,
     I::Item: Sample,
 {
-    /// Input audio source
-    input: I,
+    Mono(NormalizeMono<I>),
+    Stereo(NormalizeStereo<I>),
+    MultiChannel(NormalizeMulti<I>),
+}
 
-    /// Initial gain scaling factor (1.0 = unity)
+/// Common parameters and processing logic shared across all normalizer variants.
+///
+/// Handles:
+/// * Parameter storage (ratio, threshold, knee width, attack/release)
+/// * Per-channel state updates for peak detection
+/// * Gain computation through soft-knee limiting
+#[derive(Clone, Debug)]
+struct NormalizeBase {
+    /// Ratio of output to input level (1.0 = unity)
     ratio: f32,
-
     /// Level where limiting begins (dB)
     threshold: f32,
-
-    /// Range for gradual limiting transition (dB)
+    /// Width of the soft-knee region (dB)
     knee_width: f32,
-
-    /// Attack smoothing coefficient for envelope detection
-    /// Calculated from attack time and sample rate
+    /// Attack time constant (ms)
     attack: f32,
-
-    /// Release smoothing coefficient for envelope detection
-    /// Calculated from release time and sample rate
+    /// Release time constant (ms)
     release: f32,
+}
 
-    /// Per-channel peak detector integrator states (dB)
-    /// One state per channel for independent envelope detection
+/// Mono channel normalizer optimized for single-channel processing
+#[derive(Clone, Debug)]
+pub struct NormalizeMono<I> {
+    /// Input audio source
+    input: I,
+    /// Common normalizer parameters
+    base: NormalizeBase,
+    /// Normalisation integrator state
+    normalisation_integrator: f32,
+    /// Normalisation peak state
+    normalisation_peak: f32,
+}
+
+/// Stereo channel normalizer with optimized two-channel processing
+#[derive(Clone, Debug)]
+pub struct NormalizeStereo<I> {
+    /// Input audio source
+    input: I,
+    /// Common normalizer parameters
+    base: NormalizeBase,
+    /// Normalisation integrator states
+    normalisation_integrators: [f32; 2],
+    /// Normalisation peak states
+    normalisation_peaks: [f32; 2],
+    /// Current channel position
+    position: u8,
+}
+
+/// Generic multi-channel normalizer for surround sound or other configurations
+#[derive(Clone, Debug)]
+pub struct NormalizeMulti<I> {
+    /// Input audio source
+    input: I,
+    /// Common normalizer parameters
+    base: NormalizeBase,
+    /// Normalisation integrator states
     normalisation_integrators: Vec<f32>,
-
-    /// Per-channel smoothed peak levels (dB)
-    /// One level per channel, but maximum across all channels
-    /// is used for gain reduction to maintain imaging
+    /// Normalisation peak states
     normalisation_peaks: Vec<f32>,
-
-    /// Current sample position for channel tracking
-    /// Used to determine which channel is being processed
+    /// Current channel position
     position: usize,
+}
+
+/// Computes the gain reduction amount in dB based on input level.
+///
+/// Optimized for the most common case where samples are below threshold and no limiting is needed
+/// (returns `ZERO_DB` early).
+///
+/// # Arguments
+///
+/// * `sample_f32` - Input sample value (with initial gain applied)
+/// * `threshold` - Level where limiting begins (dB)
+/// * `knee_width` - Width of soft knee region (dB)
+///
+/// # Returns
+///
+/// Amount of gain reduction to apply in dB
+#[inline]
+fn process_sample<S: Sample>(sample: S, threshold: f32, knee_width: f32) -> f32 {
+    // Add slight DC offset. Some samples are silence, which is -inf dB and gets the limiter stuck.
+    // Adding a small positive offset prevents this.
+    let sample_f32 = sample.to_f32() + f32::MIN_POSITIVE;
+    let bias_db = util::ratio_to_db(sample_f32.abs()) - threshold;
+    let knee_boundary_db = bias_db * 2.0;
+    if knee_boundary_db < -knee_width {
+        ZERO_DB
+    } else if knee_boundary_db.abs() <= knee_width {
+        (knee_boundary_db + knee_width).powi(2) / (8.0 * knee_width)
+    } else {
+        bias_db
+    }
+}
+
+impl NormalizeBase {
+    fn new(ratio: f32, threshold: f32, knee_width: f32, attack: f32, release: f32) -> Self {
+        Self {
+            ratio,
+            threshold,
+            knee_width,
+            attack,
+            release,
+        }
+    }
+
+    /// Updates the channel's envelope detection state.
+    ///
+    /// For each channel, processes:
+    /// 1. Initial gain and dB conversion
+    /// 2. Soft-knee limiting calculation
+    /// 3. Envelope detection with attack/release filtering
+    /// 4. Peak level tracking
+    ///
+    /// Note: Only updates state, gain application is handled by the variant implementations to
+    /// allow for coupled gain reduction across channels.
+    #[inline]
+    fn process_channel<S: Sample>(&self, sample: S, integrator: &mut f32, peak: &mut f32) {
+        // step 0: apply gain stage
+        let sample = sample.amplify(self.ratio);
+
+        // step 1-4: half-wave rectification and conversion into dB, and gain computer with soft
+        // knee and subtractor
+        let limiter_db = process_sample(sample, self.threshold, self.knee_width);
+
+        // step 5: smooth, decoupled peak detector
+        *integrator = f32::max(
+            limiter_db,
+            self.release * *integrator + (1.0 - self.release) * limiter_db,
+        );
+        *peak = self.attack * *peak + (1.0 - self.attack) * *integrator;
+    }
+}
+
+impl<I> NormalizeMono<I>
+where
+    I: Source,
+    I::Item: Sample,
+{
+    /// Processes the next mono sample through the limiter.
+    ///
+    /// Single channel implementation with direct state updates.
+    #[inline]
+    fn process_next(&mut self, sample: I::Item) -> I::Item {
+        self.base.process_channel(
+            sample,
+            &mut self.normalisation_integrator,
+            &mut self.normalisation_peak,
+        );
+
+        // steps 6-8: conversion into level and multiplication into gain stage
+        sample.amplify(util::db_to_ratio(-self.normalisation_peak))
+    }
+}
+
+impl<I> NormalizeStereo<I>
+where
+    I: Source,
+    I::Item: Sample,
+{
+    /// Processes the next stereo sample through the limiter.
+    ///
+    /// Uses efficient channel position tracking with XOR toggle and direct array access for state
+    /// updates.
+    #[inline]
+    fn process_next(&mut self, sample: I::Item) -> I::Item {
+        let channel = self.position as usize;
+        self.position ^= 1;
+
+        self.base.process_channel(
+            sample,
+            &mut self.normalisation_integrators[channel],
+            &mut self.normalisation_peaks[channel],
+        );
+
+        // steps 6-8: conversion into level and multiplication into gain stage. Find maximum peak
+        // across both channels to couple the gain and maintain stereo imaging.
+        let max_peak = f32::max(self.normalisation_peaks[0], self.normalisation_peaks[1]);
+        sample.amplify(util::db_to_ratio(-max_peak))
+    }
+}
+
+impl<I> NormalizeMulti<I>
+where
+    I: Source,
+    I::Item: Sample,
+{
+    /// Processes the next multi-channel sample through the limiter.
+    ///
+    /// Generic implementation supporting arbitrary channel counts with `Vec`-based state storage.
+    #[inline]
+    fn process_next(&mut self, sample: I::Item) -> I::Item {
+        let channel = self.position;
+        self.position = (self.position + 1) % self.normalisation_integrators.len();
+
+        self.base.process_channel(
+            sample,
+            &mut self.normalisation_integrators[channel],
+            &mut self.normalisation_peaks[channel],
+        );
+
+        // steps 6-8: conversion into level and multiplication into gain stage. Find maximum peak
+        // across all channels to couple the gain and maintain multi-channel imaging.
+        let max_peak = self
+            .normalisation_peaks
+            .iter()
+            .fold(ZERO_DB, |max, &peak| f32::max(max, peak));
+        sample.amplify(util::db_to_ratio(-max_peak))
+    }
 }
 
 impl<I> Normalize<I>
@@ -183,26 +384,47 @@ where
 {
     /// Returns a reference to the inner audio source.
     ///
+    /// Routes through the enum variant to access the underlying source, preserving the specialized
+    /// implementation structure while allowing source inspection.
+    ///
     /// Useful for inspecting source properties without consuming the filter.
     #[inline]
     pub fn inner(&self) -> &I {
-        &self.input
+        match self {
+            Normalize::Mono(mono) => &mono.input,
+            Normalize::Stereo(stereo) => &stereo.input,
+            Normalize::MultiChannel(multi) => &multi.input,
+        }
     }
 
     /// Returns a mutable reference to the inner audio source.
     ///
-    /// Enables modifying source properties while maintaining the filter.
+    /// Routes through the enum variant to access the underlying source, maintaining the
+    /// specialized implementation structure while allowing source modification.
+    ///
+    /// Essential for operations like seeking that need to modify the source.
     #[inline]
     pub fn inner_mut(&mut self) -> &mut I {
-        &mut self.input
+        match self {
+            Normalize::Mono(mono) => &mut mono.input,
+            Normalize::Stereo(stereo) => &mut stereo.input,
+            Normalize::MultiChannel(multi) => &mut multi.input,
+        }
     }
 
     /// Consumes the filter and returns the inner audio source.
     ///
+    /// Dismantles the normalizer variant to extract the source, allowing the audio pipeline to
+    /// continue without normalization overhead.
+    ///
     /// Useful when normalization is no longer needed but source should continue.
     #[inline]
     pub fn into_inner(self) -> I {
-        self.input
+        match self {
+            Normalize::Mono(mono) => mono.input,
+            Normalize::Stereo(stereo) => stereo.input,
+            Normalize::MultiChannel(multi) => multi.input,
+        }
     }
 }
 
@@ -213,118 +435,37 @@ where
 {
     type Item = I::Item;
 
-    /// Processes the next audio sample through the limiter.
+    /// Provides the next processed sample.
     ///
-    /// Processing steps:
-    /// 1. Apply initial gain scaling (same for all channels)
-    /// 2. Convert to dB and detect peaks:
-    ///    - Protects against non-normal values that would cause NaN/inf
-    ///    - Applies soft-knee curve for smooth limiting
-    /// 3. Update envelope detection:
-    ///    - Tracks peaks independently per channel
-    ///    - Uses attack/release smoothing for natural response
-    /// 4. Calculate gain reduction:
-    ///    - Finds maximum peak across all channels
-    ///    - Applies same reduction to all channels
-    ///    - Preserves stereo/multichannel imaging
-    ///
-    /// Returns `None` when input source is exhausted.
+    /// Routes processing to the appropriate channel-specific implementation:
+    /// * Mono: Direct single-channel processing
+    /// * Stereo: Optimized two-channel processing
+    /// * `MultiChannel`: Generic multi-channel processing
     #[inline]
-    fn next(&mut self) -> Option<I::Item> {
-        let sample = self.input.next()?;
-
-        let channel = self.position % self.input.channels() as usize;
-        self.position = self.position.wrapping_add(1);
-
-        // step 0: apply gain stage
-        sample.amplify(self.ratio);
-
-        // zero-cost shorthands
-        let threshold_db = self.threshold;
-        let knee_db = self.knee_width;
-        let attack_cf = self.attack;
-        let release_cf = self.release;
-
-        // Some tracks have samples that are precisely 0.0. That's silence
-        // and we know we don't need to limit that, in which we can spare
-        // the CPU cycles.
-        //
-        // Also, calling `ratio_to_db(0.0)` returns `inf` and would get the
-        // peak detector stuck. Also catch the unlikely case where a sample
-        // is decoded as `NaN` or some other non-normal value.
-        let sample_f32 = sample.to_f32();
-
-        let mut limiter_db = ZERO_DB;
-        if sample_f32.is_normal() {
-            // step 1-4: half-wave rectification and conversion into dB
-            // and gain computer with soft knee and subtractor
-            let bias_db = util::ratio_to_db(sample_f32.abs()) - threshold_db;
-            let knee_boundary_db = bias_db * 2.0;
-
-            if knee_boundary_db < -knee_db {
-                limiter_db = ZERO_DB;
-            } else if knee_boundary_db.abs() <= knee_db {
-                // Textbook:
-                // ```
-                // ratio_to_db(sample.abs()) - (ratio_to_db(sample.abs()) -
-                // bias_db + knee_db / 2.0).powi(2) / (2.0 * knee_db))
-                // ```
-                limiter_db = (knee_boundary_db + knee_db).powi(2) / (8.0 * knee_db);
-            } else {
-                // Textbook:
-                // ```
-                // ratio_to_db(sample.abs()) - threshold_db
-                // ```
-                // ...which is already our `bias_db`.
-                limiter_db = bias_db;
+    fn next(&mut self) -> Option<Self::Item> {
+        match self {
+            Normalize::Mono(mono) => {
+                let sample = mono.input.next()?;
+                Some(mono.process_next(sample))
+            }
+            Normalize::Stereo(stereo) => {
+                let sample = stereo.input.next()?;
+                Some(stereo.process_next(sample))
+            }
+            Normalize::MultiChannel(multi) => {
+                let sample = multi.input.next()?;
+                Some(multi.process_next(sample))
             }
         }
-
-        // Previously, we had a check here to see if the limiter was engaged in an attempt
-        // to save CPU cycles. However, the cost of the check was higher than the cost of
-        // the computation, so we removed it.
-
-        // step 5: smooth, decoupled peak detector
-        //
-        // Textbook:
-        // ```
-        // release_cf * self.normalisation_integrator + (1.0 - release_cf) * limiter_db
-        // ```
-        self.normalisation_integrators[channel] = f32::max(
-            limiter_db,
-            release_cf * self.normalisation_integrators[channel] - release_cf * limiter_db
-                + limiter_db,
-        );
-
-        // Textbook:
-        // ```
-        // attack_cf * self.normalisation_peak + (1.0 - attack_cf)
-        // * self.normalisation_integrator
-        // ```
-        self.normalisation_peaks[channel] = attack_cf * self.normalisation_peaks[channel]
-            - attack_cf * self.normalisation_integrators[channel]
-            + self.normalisation_integrators[channel];
-
-        // Find maximum peak across all channels to couple the gain across all channels
-        // and maintain multi-channel imaging.
-        let max_peak = self
-            .normalisation_peaks
-            .iter()
-            .copied()
-            .fold(ZERO_DB, f32::max);
-
-        // steps 6-8: conversion into level and multiplication into gain stage
-        sample.amplify(util::db_to_ratio(-max_peak));
-
-        Some(sample)
     }
 
     /// Provides size hints from the inner source.
     ///
+    /// Delegates directly to the source to maintain accurate collection sizing.
     /// Used by collection operations for optimization.
     #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
-        self.input.size_hint()
+        self.inner().size_hint()
     }
 }
 
@@ -334,41 +475,66 @@ where
     I::Item: Sample,
 {
     /// Returns the number of samples in the current audio frame.
+    ///
+    /// Delegates to inner source to maintain frame alignment.
     #[inline]
     fn current_frame_len(&self) -> Option<usize> {
-        self.input.current_frame_len()
+        self.inner().current_frame_len()
     }
 
-    /// Returns the number of audio channels.
-    #[inline]
+    /// Returns the number of channels in the audio stream.
+    ///
+    /// Channel count determines which normalizer variant is used:
+    /// * 1: Mono
+    /// * 2: Stereo
+    /// * >2: MultiChannel
     fn channels(&self) -> u16 {
-        self.input.channels()
+        self.inner().channels()
     }
 
     /// Returns the audio sample rate in Hz.
-    #[inline]
     fn sample_rate(&self) -> u32 {
-        self.input.sample_rate()
+        self.inner().sample_rate()
     }
 
     /// Returns the total duration of the audio.
     ///
     /// Returns None for streams without known duration.
-    #[inline]
     fn total_duration(&self) -> Option<Duration> {
-        self.input.total_duration()
+        self.inner().total_duration()
     }
 
     /// Attempts to seek to the specified position.
     ///
-    /// Also resets limiter state to prevent artifacts.
-    #[inline]
-    fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
-        self.input.try_seek(pos)?;
+    /// Resets limiter state to prevent artifacts after seeking:
+    /// * Mono: Direct reset of integrator and peak values
+    /// * Stereo: Efficient array fill for both channels
+    /// * `MultiChannel`: Resets all channel states via fill
+    ///
+    /// # Arguments
+    ///
+    /// * `target` - Position to seek to
+    ///
+    /// # Errors
+    ///
+    /// Returns error if the underlying source fails to seek
+    fn try_seek(&mut self, target: Duration) -> Result<(), SeekError> {
+        self.inner_mut().try_seek(target)?;
 
-        self.normalisation_integrators = vec![ZERO_DB; self.channels() as usize];
-        self.normalisation_peaks = vec![ZERO_DB; self.channels() as usize];
-        self.position = 0;
+        match self {
+            Normalize::Mono(mono) => {
+                mono.normalisation_integrator = ZERO_DB;
+                mono.normalisation_peak = ZERO_DB;
+            }
+            Normalize::Stereo(stereo) => {
+                stereo.normalisation_integrators.fill(ZERO_DB);
+                stereo.normalisation_peaks.fill(ZERO_DB);
+            }
+            Normalize::MultiChannel(multi) => {
+                multi.normalisation_integrators.fill(ZERO_DB);
+                multi.normalisation_peaks.fill(ZERO_DB);
+            }
+        }
 
         Ok(())
     }
