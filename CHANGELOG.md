@@ -5,6 +5,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 and [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/).
 
+## [Unreleased]
+
+### Changed
+- [decoder] Track ID validation and explicit track seeking
+- [player] Start preloads only when playing
+- [track] Handle 0-byte downloads as errors
+
+### Fixed
+- [decoder] Spurious failure to seek to the end of a track
+- [player] Correctly report next track when paused
+
+### Security
+- [protocol] Prevent uncontrolled recursion in protobuf parsing (GHSA-2gh3-rmm4-6rq5)
+
 ## [v0.12.2] - 2025-03-06
 
 ### Added
