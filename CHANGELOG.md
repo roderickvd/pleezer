@@ -9,6 +9,8 @@ and [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/).
 
 ### Changed
 - [decoder] Track ID validation and explicit track seeking
+- [decoder] Fast-path optimizations for sample retrieval
+- [normalize] Optimize limiter implementation for better performance
 - [player] Start preloads only when playing
 - [track] Handle 0-byte downloads as errors
 
