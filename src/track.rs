@@ -1100,8 +1100,12 @@ impl Track {
 
         // Set the file size if known. This is used to calculate the prefetch size.
         if let Some(file_size) = stream.content_length() {
-            info!("downloading {file_size} bytes for {} {self}", self.typ);
-            self.file_size = Some(file_size);
+            if file_size > 0 {
+                info!("downloading {file_size} bytes for {} {self}", self.typ);
+                self.file_size = Some(file_size);
+            } else {
+                return Err(Error::data_loss(format!("{} is 0 bytes", self.typ)));
+            }
         } else {
             info!("downloading {} {self} with unknown file size", self.typ);
         }

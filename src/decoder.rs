@@ -574,6 +574,15 @@ impl rodio::Source for Decoder {
     /// * Position is beyond stream end
     /// * Stream format doesn't support seeking
     fn try_seek(&mut self, pos: Duration) -> std::result::Result<(), SeekError> {
+        // Saturate the position to the total duration if it exceeds it.
+        // This prevents decoder errors from seeking to a position beyond the stream end.
+        let mut target = pos;
+        if let Some(total_duration) = self.total_duration {
+            if target > total_duration {
+                target = total_duration;
+            }
+        }
+
         // Save the currently active channel, so we can skip to it after seeking
         // and prevent accidental channel changes during seeking.
         let active_channel = self.position % self.channels as usize;
@@ -584,7 +593,7 @@ impl rodio::Source for Decoder {
                 SeekMode::Accurate,
                 SeekTo::Time {
                     track_id: None, // implies the default or first track
-                    time: pos.into(),
+                    time: target.into(),
                 },
             )
             .map_err(|e| SeekError::Other(Box::new(e)))?;

@@ -611,8 +611,9 @@ impl Player {
         if repeat_mode != RepeatMode::One {
             let next = self.position.saturating_add(1);
             if next < self.queue.len() {
-                // Move to the next track.
+                // Move to the next track, preloaded if possible.
                 self.position = next;
+                self.current_rx = self.preload_rx.take();
             } else {
                 // Reached the end of the queue: rewind to the beginning.
                 if repeat_mode != RepeatMode::All {
@@ -836,16 +837,12 @@ impl Player {
                     if current_rx.try_recv().is_ok() {
                         // Save the point in time when the track finished playing.
                         self.playing_since = self.get_pos();
-
-                        // Move the preloaded track, if any, to the current track.
-                        self.current_rx = self.preload_rx.take();
                         self.go_next();
                     }
 
-                    // Preload the next track if all of the following conditions are met:
-                    // - the repeat mode is not "Repeat One"
-                    // - the current track is done downloading
+                    // Preload the next track for gapless playback
                     if self.preload_rx.is_none()
+                        && self.is_playing()
                         && self.repeat_mode() != RepeatMode::One
                         && self.track().is_some_and(Track::is_complete)
                     {
@@ -1133,18 +1130,21 @@ impl Player {
     ///
     /// Note: Setting to current position is ignored to
     /// prevent interrupting seeks.
-    pub fn set_position(&mut self, position: usize) {
+    pub fn set_position(&mut self, target: usize) {
         // If the position is already set, do nothing. Deezer also sends the same position when
         // seeking, in which case we should not clear the current track.
-        if self.position == position {
+        if self.position == target {
             return;
         }
 
-        info!("setting playlist position to {position}");
+        info!("setting playlist position to {target}");
 
-        // If we want to skip to the next track, and the current track is fully downloaded, then
-        // fast-forward to the next track. This way we don't need to drop the preload.
-        if position == self.position.saturating_add(1)
+        // If we want to skip to the next track, and the current track is completely downloaded,
+        // then don't clear the queue but seek to the end of the current track. This way we don't
+        // need to drop the preload. This only works if the player is playing: only then does the
+        // playback loop advance to the next track.
+        if target == self.position.saturating_add(1)
+            && self.is_playing()
             && self.track().is_some_and(Track::is_complete)
             && self.set_progress(Percentage::ONE_HUNDRED).is_ok()
         {
@@ -1153,7 +1153,7 @@ impl Player {
 
         // Otherwise, clear the sink, which will drop any tracks and their downloads.
         self.clear();
-        self.position = position;
+        self.position = target;
     }
 
     /// Clears the playback state.
@@ -1460,14 +1460,7 @@ impl Player {
             })?;
 
             let ratio = progress.as_ratio();
-            let mut position = if ratio <= 0.0 {
-                Duration::ZERO
-            } else if ratio >= 1.0 {
-                duration
-            } else {
-                duration.mul_f32(ratio)
-            };
-
+            let mut position = duration.mul_f32(ratio.clamp(0.0, 1.0));
             let minutes = position.as_secs() / 60;
             let seconds = position.as_secs() % 60;
             info!(
