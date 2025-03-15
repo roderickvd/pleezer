@@ -108,6 +108,9 @@ pub struct Decoder {
     /// Reusable sample buffer to minimize allocations
     buffer: Option<SampleBuffer<SampleFormat>>,
 
+    /// Track ID associated with the decoder
+    track_id: u32,
+
     /// Current position in the sample buffer
     position: usize,
 
@@ -218,6 +221,7 @@ impl Decoder {
             .default_track()
             .ok_or_else(|| Error::not_found("default track not found"))?;
 
+        let track_id = default_track.id;
         let codec_params = &default_track.codec_params;
         let decoder = codecs.make(codec_params, &DecoderOptions::default())?;
 
@@ -239,6 +243,7 @@ impl Decoder {
             buffer: None,
             position: 0,
 
+            track_id,
             channels,
             sample_rate,
             total_duration,
@@ -443,6 +448,14 @@ impl Decoder {
 
             match self.demuxer.next_packet() {
                 Ok(packet) => {
+                    if packet.track_id() != self.track_id {
+                        return Err(io::Error::new(
+                            io::ErrorKind::UnexpectedEof,
+                            "track id mismatch",
+                        )
+                        .into());
+                    }
+
                     let decoded = match self.decoder.decode(&packet) {
                         Ok(decoded) => decoded,
 
@@ -592,7 +605,7 @@ impl rodio::Source for Decoder {
             .seek(
                 SeekMode::Accurate,
                 SeekTo::Time {
-                    track_id: None, // implies the default or first track
+                    track_id: Some(self.track_id),
                     time: target.into(),
                 },
             )
