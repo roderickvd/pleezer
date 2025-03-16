@@ -5,7 +5,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 and [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/).
 
-## [Unreleased]
+## [v0.13.0] - 2025-03-16
 
 ### Changed
 - [decoder] Track ID validation and explicit track seeking
@@ -325,7 +325,8 @@ Initial release of pleezer, a headless streaming player for the Deezer Connect p
 - Debug and trace logging capabilities
 - Command-line interface with various configuration options
 
-[Unreleased]: https://github.com/roderickvd/pleezer/compare/v0.12.2...HEAD
+[Unreleased]: https://github.com/roderickvd/pleezer/compare/v0.13.0...HEAD
+[0.13.0]: https://github.com/roderickvd/pleezer/releases/tag/v0.13.0
 [0.12.2]: https://github.com/roderickvd/pleezer/releases/tag/v0.12.2
 [0.12.1]: https://github.com/roderickvd/pleezer/releases/tag/v0.12.1
 [0.12.0]: https://github.com/roderickvd/pleezer/releases/tag/v0.12.0
