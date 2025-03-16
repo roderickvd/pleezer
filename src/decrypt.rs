@@ -113,7 +113,12 @@ where
     ///
     /// Contains the current 2KB block (or smaller for the last block)
     /// of decrypted data.
-    buffer: Vec<u8>,
+    buffer: [u8; CBC_BLOCK_SIZE],
+
+    /// Current length of valid data in the buffer.
+    ///
+    /// May be less than `CBC_BLOCK_SIZE`, especially for the last block.
+    buffer_len: usize,
 
     /// Current position within the buffer.
     ///
@@ -295,7 +300,8 @@ where
             file_size: track.file_size(),
             cipher: track.cipher(),
             key,
-            buffer: [].to_vec(),
+            buffer: [0; CBC_BLOCK_SIZE],
+            buffer_len: 0,
             pos: 0,
             block: None,
         })
@@ -363,6 +369,7 @@ impl<R> Seek for Decrypt<R>
 where
     R: ReadSeek,
 {
+    #[allow(clippy::too_many_lines)]
     fn seek(&mut self, pos: SeekFrom) -> io::Result<u64> {
         // TODO: DRY up error messages
         let target = match pos {
@@ -445,22 +452,30 @@ where
                 self.file
                     .seek(SeekFrom::Start(block * CBC_BLOCK_SIZE as u64))?;
 
-                let mut temp_buffer = [0; CBC_BLOCK_SIZE];
-                let length = self.file.read(&mut temp_buffer)?;
+                // Use `read_exact` when we're sure we have a full block
+                if self.file_size.is_some_and(|size| {
+                    let remaining_bytes = size.saturating_sub(block * CBC_BLOCK_SIZE as u64);
+                    remaining_bytes >= CBC_BLOCK_SIZE as u64
+                }) {
+                    // Full block expected, use `read_exact` for efficiency
+                    self.file.read_exact(&mut self.buffer)?;
+                    self.buffer_len = CBC_BLOCK_SIZE;
+                } else {
+                    // Partial block or unknown size, use regular `read`
+                    self.buffer_len = self.file.read(&mut self.buffer)?;
+                }
 
                 let is_encrypted = block % CBC_STRIPE_COUNT as u64 == 0;
-                let is_full_block = length == CBC_BLOCK_SIZE;
+                let is_full_block = self.buffer_len == CBC_BLOCK_SIZE;
 
                 if is_encrypted && is_full_block {
                     let cipher = cbc::Decryptor::<Blowfish>::new_from_slices(&*self.key, CBC_BF_IV)
                         .map_err(|e| io::Error::new(io::ErrorKind::InvalidInput, e))?;
 
                     cipher
-                        .decrypt_padded_mut::<NoPadding>(&mut temp_buffer)
+                        .decrypt_padded_mut::<NoPadding>(&mut self.buffer[..self.buffer_len])
                         .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e.to_string()))?;
                 }
-
-                self.buffer = temp_buffer[..length].to_vec();
             }
 
             self.pos = offset;
@@ -468,7 +483,7 @@ where
         } else {
             // For unencrypted tracks, just seek directly
             let new_pos = self.file.seek(SeekFrom::Start(target))?;
-            self.buffer.clear();
+            self.buffer_len = 0;
             self.pos = 0;
             Ok(new_pos)
         }
@@ -519,9 +534,7 @@ where
                 let _ = self.stream_position()?;
             } else {
                 // Read directly into buffer
-                self.buffer.resize(CBC_BLOCK_SIZE, 0);
-                let bytes_read = self.file.read(&mut self.buffer)?;
-                self.buffer.truncate(bytes_read);
+                self.buffer_len = self.file.read(&mut self.buffer)?;
                 self.pos = 0;
             }
         }
@@ -531,7 +544,7 @@ where
                 "buffer position would be out of bounds",
             )
         })?;
-        Ok(&self.buffer[pos..])
+        Ok(&self.buffer[pos..self.buffer_len])
     }
 
     /// Marks a number of bytes as consumed.
@@ -541,7 +554,7 @@ where
     /// * `amt` - Number of bytes to mark as consumed
     #[inline]
     fn consume(&mut self, amt: usize) {
-        self.pos = (self.pos.saturating_add(amt as u64)).min(self.buffer.len() as u64);
+        self.pos = (self.pos.saturating_add(amt as u64)).min(self.buffer_len as u64);
     }
 }
 
