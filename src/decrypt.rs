@@ -406,7 +406,7 @@ where
                 } else {
                     self.file
                         .stream_position()?
-                        .checked_sub(self.buffer.len() as u64)
+                        .checked_sub(self.buffer_len as u64)
                         .and_then(|pos| pos.checked_add(self.pos))
                         .ok_or_else(|| {
                             io::Error::new(
@@ -473,7 +473,7 @@ where
                         .map_err(|e| io::Error::new(io::ErrorKind::InvalidInput, e))?;
 
                     cipher
-                        .decrypt_padded_mut::<NoPadding>(&mut self.buffer[..self.buffer_len])
+                        .decrypt_padded_mut::<NoPadding>(&mut self.buffer[..CBC_BLOCK_SIZE])
                         .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e.to_string()))?;
                 }
             }
@@ -481,10 +481,9 @@ where
             self.pos = offset;
             Ok(target)
         } else {
-            // For unencrypted tracks, just seek directly
+            // For unencrypted tracks, just seek directly and trigger a new read.
             let new_pos = self.file.seek(SeekFrom::Start(target))?;
             self.buffer_len = 0;
-            self.pos = 0;
             Ok(new_pos)
         }
     }
@@ -528,7 +527,7 @@ where
     /// * `InvalidInput` - Buffer position would be out of bounds
     /// * `InvalidData` - Decryption failed
     fn fill_buf(&mut self) -> io::Result<&[u8]> {
-        if self.pos >= self.buffer.len() as u64 {
+        if self.pos >= self.buffer_len as u64 {
             if self.is_encrypted() {
                 // Fill buffer with next decrypted block
                 let _ = self.stream_position()?;
