@@ -10,6 +10,9 @@ and [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/).
 ### Changed
 - [decrypt] Optimize decryption implementation for better performance
 
+### Removed
+- [decrypt] Support for unencrypted track reading
+
 ## [v0.13.0] - 2025-03-16
 
 ### Changed

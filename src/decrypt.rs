@@ -1,9 +1,9 @@
 //! Track decryption for Deezer's protected media content.
 //!
-//! This module provides buffered reading of Deezer tracks:
-//! * Processes all content in 2KB blocks
-//! * Decrypts blocks when encryption is used
-//! * Supports Blowfish CBC encryption with striping
+//! This module provides buffered reading of encrypted Deezer tracks:
+//! * Processes encrypted content in 2KB blocks
+//! * Handles Blowfish CBC encryption with striping
+//! * Manages decryption keys and block alignment
 //!
 //! # Encryption Format
 //!
@@ -12,6 +12,7 @@
 //! * Every third block is encrypted
 //! * Encryption uses Blowfish in CBC mode
 //! * A fixed IV is used
+//! * The cipher is reset after each block
 //!
 //! # Security
 //!
@@ -43,7 +44,6 @@
 //! # Implementation Details
 //!
 //! The decryptor provides:
-//! * Transparent handling of encrypted and unencrypted tracks
 //! * Efficient buffered reading via `BufRead` trait
 //! * Proper seeking support with block alignment
 //! * Automatic buffer management
@@ -66,23 +66,23 @@ use crate::{
     track::{Track, TrackId},
 };
 
-/// Block-based reader for Deezer tracks.
+/// Block-based reader for encrypted Deezer tracks.
 ///
-/// Handles both encrypted and unencrypted tracks by:
+/// Handles encrypted tracks by:
 /// * Reading content in 2KB blocks
-/// * Decrypting blocks when encryption is used
+/// * Decrypting blocks based on stripe pattern
 /// * Maintaining proper block alignment during seeks
 ///
 /// # Block Processing
 ///
-/// All content is processed in 2KB blocks:
-/// * Encrypted tracks: every third block is decrypted
-/// * Unencrypted tracks: blocks are used as-is
+/// Content is processed in 2KB blocks with:
+/// * Every third block decrypted using Blowfish CBC
+/// * Proper block alignment maintained during seeks
+/// * Buffered reading for efficiency
 ///
 /// # Supported Encryption
 ///
 /// Currently supports:
-/// * No encryption (block-based reading)
 /// * Blowfish CBC with striping (every third 2KB block)
 pub struct Decrypt<R>
 where
@@ -96,12 +96,6 @@ where
     /// Used for seek operations, particularly for seeking from
     /// the end of the track.
     file_size: Option<u64>,
-
-    /// Encryption method used for this track.
-    ///
-    /// Either `NONE` for unencrypted tracks or `BF_CBC_STRIPE`
-    /// for Blowfish CBC encryption with striping.
-    cipher: Cipher,
 
     /// Track-specific decryption key.
     ///
@@ -229,7 +223,7 @@ const CBC_BLOCK_SIZE: usize = 2 * 1024;
 const CBC_STRIPE_COUNT: usize = 3;
 
 /// Supported encryption methods.
-const SUPPORTED_CIPHERS: [Cipher; 2] = [Cipher::NONE, Cipher::BF_CBC_STRIPE];
+const SUPPORTED_CIPHERS: [Cipher; 1] = [Cipher::BF_CBC_STRIPE];
 
 thread_local! {
     /// Global decryption key, set once and used for all decryption.
@@ -270,7 +264,7 @@ impl<R> Decrypt<R>
 where
     R: ReadSeek,
 {
-    /// Creates a new decryption stream for a track.
+    /// Creates a new decryption stream for an encrypted track.
     ///
     /// # Arguments
     /// * `track` - Track metadata including encryption information
@@ -280,6 +274,7 @@ where
     /// A new decryptor configured for the track's encryption method
     ///
     /// # Errors
+    /// * `Error::InvalidArgument` - Track is not encrypted
     /// * `Error::Unimplemented` - Track uses unsupported encryption method
     /// * `Error::PermissionDenied` - Global decryption key not set
     /// * `Error::InvalidData` - Failed to generate track-specific key
@@ -287,8 +282,14 @@ where
     where
         R: ReadSeek,
     {
+        if !track.is_encrypted() {
+            return Err(Error::invalid_argument(format!("{track} is not encrypted")));
+        }
         if !SUPPORTED_CIPHERS.contains(&track.cipher()) {
-            return Err(Error::unimplemented("unsupported encryption algorithm"));
+            return Err(Error::unimplemented(format!(
+                "unsupported encryption algorithm {}",
+                track.cipher()
+            )));
         }
 
         // Calculate decryption key.
@@ -298,7 +299,6 @@ where
         Ok(Self {
             file,
             file_size: track.file_size(),
-            cipher: track.cipher(),
             key,
             buffer: [0; CBC_BLOCK_SIZE],
             buffer_len: 0,
@@ -332,25 +332,19 @@ where
         }
         Key(key)
     }
-
-    /// Whether the track is encrypted.
-    #[must_use]
-    pub fn is_encrypted(&self) -> bool {
-        self.cipher != Cipher::NONE
-    }
 }
 
-/// Seeks within the stream.
+/// Seeks within the encrypted stream.
 ///
 /// The implementation handles:
 /// * Block alignment for encrypted content
-/// * Buffer management for all content
-/// * Position calculations for both modes
+/// * Buffer management for decryption
+/// * Position calculations with stripe pattern
 ///
-/// For encrypted content:
-/// * Maintains block boundaries (2KB blocks)
-/// * Only decrypts blocks when necessary
-/// * Preserves stripe pattern (every third block)
+/// Maintains:
+/// * 2KB block boundaries
+/// * Decryption of every third block
+/// * Proper stripe pattern alignment
 ///
 /// # Arguments
 ///
@@ -369,7 +363,6 @@ impl<R> Seek for Decrypt<R>
 where
     R: ReadSeek,
 {
-    #[allow(clippy::too_many_lines)]
     fn seek(&mut self, pos: SeekFrom) -> io::Result<u64> {
         // TODO: DRY up error messages
         let target = match pos {
@@ -392,29 +385,17 @@ where
                     })?
             }
             SeekFrom::Current(pos) => {
-                let current = if self.is_encrypted() {
-                    self.block
-                        .unwrap_or_default()
-                        .checked_mul(CBC_BLOCK_SIZE as u64)
-                        .and_then(|block| block.checked_add(self.pos))
-                        .ok_or_else(|| {
-                            io::Error::new(
-                                io::ErrorKind::InvalidInput,
-                                "invalid seek to negative or overflowing position",
-                            )
-                        })?
-                } else {
-                    self.file
-                        .stream_position()?
-                        .checked_sub(self.buffer_len as u64)
-                        .and_then(|pos| pos.checked_add(self.pos))
-                        .ok_or_else(|| {
-                            io::Error::new(
-                                io::ErrorKind::InvalidInput,
-                                "invalid seek to negative or overflowing position",
-                            )
-                        })?
-                };
+                let current = self
+                    .block
+                    .unwrap_or_default()
+                    .checked_mul(CBC_BLOCK_SIZE as u64)
+                    .and_then(|block| block.checked_add(self.pos))
+                    .ok_or_else(|| {
+                        io::Error::new(
+                            io::ErrorKind::InvalidInput,
+                            "invalid seek to negative or overflowing position",
+                        )
+                    })?;
 
                 current.checked_add_signed(pos).ok_or_else(|| {
                     io::Error::new(
@@ -432,60 +413,53 @@ where
             ));
         }
 
-        if self.is_encrypted() {
-            let block = target.checked_div(CBC_BLOCK_SIZE as u64).ok_or_else(|| {
-                io::Error::new(
-                    io::ErrorKind::InvalidInput,
-                    "block calculation would be divide by zero",
-                )
-            })?;
-            let offset = target.checked_rem(CBC_BLOCK_SIZE as u64).ok_or_else(|| {
-                io::Error::new(
-                    io::ErrorKind::InvalidInput,
-                    "offset calculation would be divide by zero",
-                )
-            })?;
+        let block = target.checked_div(CBC_BLOCK_SIZE as u64).ok_or_else(|| {
+            io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "block calculation would be divide by zero",
+            )
+        })?;
+        let offset = target.checked_rem(CBC_BLOCK_SIZE as u64).ok_or_else(|| {
+            io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "offset calculation would be divide by zero",
+            )
+        })?;
 
-            // Only read new block if different from current
-            if self.block.is_none_or(|current| current != block) {
-                self.block = Some(block);
-                self.file
-                    .seek(SeekFrom::Start(block * CBC_BLOCK_SIZE as u64))?;
+        // Only read new block if different from current
+        if self.block.is_none_or(|current| current != block) {
+            self.block = Some(block);
+            self.file
+                .seek(SeekFrom::Start(block * CBC_BLOCK_SIZE as u64))?;
 
-                // Use `read_exact` when we're sure we have a full block
-                if self.file_size.is_some_and(|size| {
-                    let remaining_bytes = size.saturating_sub(block * CBC_BLOCK_SIZE as u64);
-                    remaining_bytes >= CBC_BLOCK_SIZE as u64
-                }) {
-                    // Full block expected, use `read_exact` for efficiency
-                    self.file.read_exact(&mut self.buffer)?;
-                    self.buffer_len = CBC_BLOCK_SIZE;
-                } else {
-                    // Partial block or unknown size, use regular `read`
-                    self.buffer_len = self.file.read(&mut self.buffer)?;
-                }
-
-                let is_encrypted = block % CBC_STRIPE_COUNT as u64 == 0;
-                let is_full_block = self.buffer_len == CBC_BLOCK_SIZE;
-
-                if is_encrypted && is_full_block {
-                    let cipher = cbc::Decryptor::<Blowfish>::new_from_slices(&*self.key, CBC_BF_IV)
-                        .map_err(|e| io::Error::new(io::ErrorKind::InvalidInput, e))?;
-
-                    cipher
-                        .decrypt_padded_mut::<NoPadding>(&mut self.buffer[..CBC_BLOCK_SIZE])
-                        .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e.to_string()))?;
-                }
+            // Use `read_exact` when we're sure we have a full block
+            if self.file_size.is_some_and(|size| {
+                let remaining_bytes = size.saturating_sub(block * CBC_BLOCK_SIZE as u64);
+                remaining_bytes >= CBC_BLOCK_SIZE as u64
+            }) {
+                // Full block expected, use `read_exact` for efficiency
+                self.file.read_exact(&mut self.buffer)?;
+                self.buffer_len = CBC_BLOCK_SIZE;
+            } else {
+                // Partial block or unknown size, use regular `read`
+                self.buffer_len = self.file.read(&mut self.buffer)?;
             }
 
-            self.pos = offset;
-            Ok(target)
-        } else {
-            // For unencrypted tracks, just seek directly and trigger a new read.
-            let new_pos = self.file.seek(SeekFrom::Start(target))?;
-            self.buffer_len = 0;
-            Ok(new_pos)
+            let is_encrypted = block % CBC_STRIPE_COUNT as u64 == 0;
+            let is_full_block = self.buffer_len == CBC_BLOCK_SIZE;
+
+            if is_encrypted && is_full_block {
+                let cipher = cbc::Decryptor::<Blowfish>::new_from_slices(&*self.key, CBC_BF_IV)
+                    .map_err(|e| io::Error::new(io::ErrorKind::InvalidInput, e))?;
+
+                cipher
+                    .decrypt_padded_mut::<NoPadding>(&mut self.buffer[..CBC_BLOCK_SIZE])
+                    .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e.to_string()))?;
+            }
         }
+
+        self.pos = offset;
+        Ok(target)
     }
 }
 
@@ -528,21 +502,17 @@ where
     /// * `InvalidData` - Decryption failed
     fn fill_buf(&mut self) -> io::Result<&[u8]> {
         if self.pos >= self.buffer_len as u64 {
-            if self.is_encrypted() {
-                // Fill buffer with next decrypted block
-                let _ = self.stream_position()?;
-            } else {
-                // Read directly into buffer
-                self.buffer_len = self.file.read(&mut self.buffer)?;
-                self.pos = 0;
-            }
+            // Fill buffer with next decrypted block
+            let _ = self.stream_position()?;
         }
+
         let pos = usize::try_from(self.pos).map_err(|_| {
             io::Error::new(
                 io::ErrorKind::InvalidInput,
                 "buffer position would be out of bounds",
             )
         })?;
+
         Ok(&self.buffer[pos..self.buffer_len])
     }
 
