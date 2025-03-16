@@ -161,7 +161,7 @@ impl Gateway {
     /// OAuth client ID for authentication.
     ///
     /// Application identifier used during OAuth authentication flow.
-    /// Registered client ID for web application access.
+    /// This will show as a "Hisense TV - V2" Deezer app.
     const OAUTH_CLIENT_ID: usize = 447_462;
 
     /// OAuth password hashing salt.
