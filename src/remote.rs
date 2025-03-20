@@ -2173,7 +2173,8 @@ impl Client {
                 // If current progress is 100% and there is a track upcoming, then skip this
                 // reporting cycle: the next track will be reported very soon instead. This
                 // prevents some UI glitches.
-                if progress.is_some_and(|progress| progress >= Percentage::ONE_HUNDRED)
+                if self.player.is_playing()
+                    && progress.is_some_and(|progress| progress >= Percentage::ONE_HUNDRED)
                     && self.player.next_track().is_some()
                 {
                     return Ok(());
