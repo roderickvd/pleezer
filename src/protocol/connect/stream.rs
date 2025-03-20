@@ -46,7 +46,7 @@
 use std::{fmt, str::FromStr};
 
 use serde::{Deserialize, Serialize};
-use serde_with::{serde_as, DeserializeFromStr, DisplayFromStr, SerializeDisplay};
+use serde_with::{DeserializeFromStr, DisplayFromStr, SerializeDisplay, serde_as};
 use uuid::Uuid;
 
 use super::channel::UserId;

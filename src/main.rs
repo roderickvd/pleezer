@@ -42,9 +42,9 @@
 
 use std::{env, fs, path::Path, process, time::Duration};
 
-use clap::{command, Parser, ValueHint};
+use clap::{Parser, ValueHint, command};
 use exponential_backoff::Backoff;
-use log::{debug, error, info, trace, warn, LevelFilter};
+use log::{LevelFilter, debug, error, info, trace, warn};
 
 use pleezer::{
     arl::Arl,
@@ -407,8 +407,8 @@ async fn run(args: Args) -> Result<ShutdownSignal> {
             || app_lang.contains(illegal_chars)
         {
             return Err(Error::invalid_argument(format!(
-            "application name, version and/or language invalid (\"{app_name}\"; \"{app_version}\"; \"{app_lang}\")")
-        ));
+                "application name, version and/or language invalid (\"{app_name}\"; \"{app_version}\"; \"{app_lang}\")"
+            )));
         }
 
         let os_name = match std::env::consts::OS {

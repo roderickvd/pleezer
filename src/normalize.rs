@@ -43,7 +43,7 @@
 
 use std::time::Duration;
 
-use rodio::{source::SeekError, Sample, Source};
+use rodio::{Sample, Source, source::SeekError};
 
 use crate::util::{self, ToF32, ZERO_DB};
 

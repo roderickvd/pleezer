@@ -9,6 +9,7 @@ and [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/).
 
 ### Changed
 - [decrypt] Optimize decryption implementation for better performance
+- [main] Migrate to Rust 2024 edition
 
 ### Fixed
 - [remote] Correctly report end of last track

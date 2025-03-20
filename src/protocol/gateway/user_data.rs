@@ -39,7 +39,7 @@
 use std::{ops::Deref, str::FromStr, time::SystemTime};
 
 use serde::Deserialize;
-use serde_with::{formats::Flexible, serde_as, DisplayFromStr, PickFirst, TimestampSeconds};
+use serde_with::{DisplayFromStr, PickFirst, TimestampSeconds, formats::Flexible, serde_as};
 use url::Url;
 use veil::Redact;
 

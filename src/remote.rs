@@ -120,17 +120,17 @@ use std::{
     time::Duration,
 };
 
-use futures_util::{stream::SplitSink, SinkExt, StreamExt};
+use futures_util::{SinkExt, StreamExt, stream::SplitSink};
 use log::Level;
 use semver;
 use time::OffsetDateTime;
 use tokio_tungstenite::{
-    tungstenite::{
-        client::ClientRequestBuilder,
-        protocol::{frame::Frame, WebSocketConfig},
-        Message as WebsocketMessage,
-    },
     MaybeTlsStream, WebSocketStream,
+    tungstenite::{
+        Message as WebsocketMessage,
+        client::ClientRequestBuilder,
+        protocol::{WebSocketConfig, frame::Frame},
+    },
 };
 use uuid::Uuid;
 
@@ -141,13 +141,14 @@ use crate::{
     gateway::Gateway,
     player::Player,
     protocol::connect::{
-        queue::{self, MixType},
-        stream, Body, Channel, Contents, DeviceId, DeviceType, Headers, Ident, Message, Percentage,
+        Body, Channel, Contents, DeviceId, DeviceType, Headers, Ident, Message, Percentage,
         QueueItem, RepeatMode, Status, UserId,
+        queue::{self, MixType},
+        stream,
     },
     proxy,
     tokens::UserToken,
-    track::{Track, TrackId, DEFAULT_BITS_PER_SAMPLE, DEFAULT_SAMPLE_RATE},
+    track::{DEFAULT_BITS_PER_SAMPLE, DEFAULT_SAMPLE_RATE, Track, TrackId},
     util::ToF32,
 };
 
@@ -2317,7 +2318,7 @@ impl Client {
             WebsocketMessage::Close(payload) => {
                 return ControlFlow::Break(Error::aborted(format!(
                     "connection closed by server: {payload:?}"
-                )))
+                )));
             }
 
             _ => {

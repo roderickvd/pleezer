@@ -28,7 +28,7 @@
 
 use std::io::{BufReader, Read, Seek};
 
-use stream_download::{storage::StorageProvider, StreamDownload};
+use stream_download::{StreamDownload, storage::StorageProvider};
 use symphonia::core::io::MediaSource;
 
 use crate::{decrypt::Decrypt, error::Result, track::Track};

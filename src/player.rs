@@ -74,8 +74,8 @@ use crate::{
     http, normalize,
     protocol::{
         connect::{
-            contents::{AudioQuality, RepeatMode},
             Percentage,
+            contents::{AudioQuality, RepeatMode},
         },
         gateway::{self, MediaUrl},
     },
@@ -793,7 +793,9 @@ impl Player {
             debug!(
                 "loaded {} {track}; codec: {codec}; sample rate: {sample_rate} kHz; bitrate: {bitrate} kbps; channels: {}",
                 track.typ(),
-                track.channels.unwrap_or_else(|| track.typ().default_channels())
+                track
+                    .channels
+                    .unwrap_or_else(|| track.typ().default_channels())
             );
 
             return Ok(Some(rx));

@@ -96,8 +96,8 @@ use std::{
 };
 
 use stream_download::{
-    self, http::HttpStream, source::SourceStream, storage::StorageProvider, StreamDownload,
-    StreamHandle, StreamPhase, StreamState,
+    self, StreamDownload, StreamHandle, StreamPhase, StreamState, http::HttpStream,
+    source::SourceStream, storage::StorageProvider,
 };
 use time::OffsetDateTime;
 use url::Url;
@@ -108,11 +108,10 @@ use crate::{
     error::{Error, Result},
     http,
     protocol::{
-        self,
+        self, Codec,
         connect::AudioQuality,
         gateway::{self, LivestreamUrls},
         media::{self, Cipher, CipherFormat, Data, Format, Medium},
-        Codec,
     },
     util::ToF32,
 };

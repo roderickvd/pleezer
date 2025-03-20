@@ -55,7 +55,7 @@ use std::{
     str::FromStr,
 };
 
-use blowfish::{cipher::BlockDecryptMut, cipher::KeyIvInit, Blowfish};
+use blowfish::{Blowfish, cipher::BlockDecryptMut, cipher::KeyIvInit};
 use cbc::cipher::block_padding::NoPadding;
 use md5::{Digest, Md5};
 

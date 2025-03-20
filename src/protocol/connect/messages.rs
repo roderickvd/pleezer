@@ -45,7 +45,7 @@ use std::fmt;
 
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-use super::{stream, Channel, Contents};
+use super::{Channel, Contents, stream};
 use crate::error::Error;
 
 /// Primary message type for the Deezer Connect protocol.

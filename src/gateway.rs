@@ -63,7 +63,7 @@ use futures_util::TryFutureExt;
 use md5::{Digest, Md5};
 use reqwest::{
     self,
-    header::{HeaderMap, HeaderValue, AUTHORIZATION},
+    header::{AUTHORIZATION, HeaderMap, HeaderValue},
 };
 use serde::Deserialize;
 use url::Url;
@@ -74,23 +74,21 @@ use crate::{
     error::{Error, ErrorKind, Result},
     http::Client as HttpClient,
     protocol::{
-        self, auth,
+        self, Codec, auth,
         connect::{
-            queue::{self},
             AudioQuality, UserId,
+            queue::{self},
         },
         gateway::{
-            self,
+            self, MediaUrl, Queue, Response, UserData,
             list_data::{
+                ListData,
                 episodes::{self, EpisodeData},
                 livestream::{self, LivestreamData},
                 songs::{self, SongData},
-                ListData,
             },
             user_radio::{self, UserRadio},
-            MediaUrl, Queue, Response, UserData,
         },
-        Codec,
     },
     tokens::UserToken,
 };

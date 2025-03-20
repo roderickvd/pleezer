@@ -77,7 +77,7 @@
 use std::{fmt, time::SystemTime};
 
 use serde::{Deserialize, Serialize};
-use serde_with::{formats::Flexible, serde_as, TimestampSeconds};
+use serde_with::{TimestampSeconds, formats::Flexible, serde_as};
 use url::Url;
 use veil::Redact;
 

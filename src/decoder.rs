@@ -56,7 +56,7 @@ use crate::{
     normalize::{self, Normalize},
     player::SampleFormat,
     protocol::Codec,
-    track::{Track, DEFAULT_SAMPLE_RATE},
+    track::{DEFAULT_SAMPLE_RATE, Track},
     util::ToF32,
 };
 

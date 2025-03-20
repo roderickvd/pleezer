@@ -64,9 +64,8 @@ use std::{num::NonZeroU32, sync::Arc, time::Duration};
 use governor::{DefaultDirectRateLimiter, Quota};
 use http::header::CONTENT_TYPE;
 use reqwest::{
-    self,
-    header::{HeaderValue, ACCEPT_LANGUAGE},
-    Body, Method, Url,
+    self, Body, Method, Url,
+    header::{ACCEPT_LANGUAGE, HeaderValue},
 };
 
 use crate::{config::Config, error::Result};

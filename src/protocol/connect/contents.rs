@@ -62,15 +62,15 @@ use std::{
 
 use base64::prelude::*;
 use flate2::{
-    read::{DeflateDecoder, DeflateEncoder},
     Compression,
+    read::{DeflateDecoder, DeflateEncoder},
 };
 use protobuf::Message;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 use serde_with::{
-    formats::Flexible, json::JsonString, serde_as, DeserializeFromStr, DisplayFromStr,
-    DurationSeconds, NoneAsEmptyString, SerializeDisplay,
+    DeserializeFromStr, DisplayFromStr, DurationSeconds, NoneAsEmptyString, SerializeDisplay,
+    formats::Flexible, json::JsonString, serde_as,
 };
 use uuid::Uuid;
 
@@ -1656,7 +1656,7 @@ impl FromStr for QueueItem {
                 None => {
                     return Err(Self::Err::invalid_argument(format!(
                         "list element string slice should hold five `queue_id` parts, found {i}"
-                    )))
+                    )));
                 }
             }
         }

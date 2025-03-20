@@ -81,8 +81,8 @@ use std::{
 
 use serde::{Deserialize, Serialize};
 use serde_with::{
-    formats::Flexible, serde_as, DefaultOnError, DisplayFromStr, DurationSeconds, PickFirst,
-    TimestampSeconds,
+    DefaultOnError, DisplayFromStr, DurationSeconds, PickFirst, TimestampSeconds,
+    formats::Flexible, serde_as,
 };
 use url::Url;
 use veil::Redact;

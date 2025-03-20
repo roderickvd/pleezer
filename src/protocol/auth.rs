@@ -46,7 +46,7 @@
 use std::time::{Duration, SystemTime};
 
 use serde::{Deserialize, Serialize};
-use serde_with::{formats::Flexible, serde_as, DurationSeconds, TimestampSeconds};
+use serde_with::{DurationSeconds, TimestampSeconds, formats::Flexible, serde_as};
 use veil::Redact;
 
 /// User authentication data from OAuth login.

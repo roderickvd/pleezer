@@ -845,7 +845,7 @@ impl FromStr for Ident {
             _ => {
                 return Err(Self::Err::unimplemented(format!(
                     "message identifier `{s}`"
-                )))
+                )));
             }
         };
 

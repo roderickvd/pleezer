@@ -32,7 +32,7 @@
 use std::ops::Deref;
 
 use serde::{Deserialize, Serialize};
-use serde_with::{serde_as, DisplayFromStr};
+use serde_with::{DisplayFromStr, serde_as};
 
 use super::{ListData, Method};
 use crate::track::TrackId;

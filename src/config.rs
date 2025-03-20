@@ -44,7 +44,7 @@ use veil::Redact;
 
 use crate::{
     arl::Arl,
-    decrypt::{Key, KEY_LENGTH},
+    decrypt::{KEY_LENGTH, Key},
     error::{Error, Result},
     http,
     protocol::connect::{DeviceType, Percentage},

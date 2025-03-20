@@ -28,7 +28,7 @@ use std::fmt;
 use crate::error::Result;
 
 #[cfg(unix)]
-use tokio::signal::unix::{signal, Signal, SignalKind};
+use tokio::signal::unix::{Signal, SignalKind, signal};
 
 /// Signal that triggered a shutdown or reload.
 ///
