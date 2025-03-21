@@ -972,10 +972,30 @@ impl Player {
             }
 
             // Playback reporting happens every time a track starts playing or is unpaused.
-            self.notify(Event::Play);
+            if self.is_loaded() {
+                self.notify(Event::Play);
+            }
         }
 
         Ok(())
+    }
+
+    /// Returns whether a track is currently loaded and ready for playback.
+    ///
+    /// A track is considered loaded when it has been successfully:
+    /// * Downloaded (partially or fully)
+    /// * Decoded
+    /// * Prepared for playback
+    ///
+    /// This is distinct from `is_playing()` which also requires the audio device
+    /// to be open and actively playing.
+    ///
+    /// # Returns
+    ///
+    /// `true` if a track is loaded and ready for playback, `false` otherwise.
+    #[must_use]
+    pub fn is_loaded(&self) -> bool {
+        self.current_rx.is_some()
     }
 
     /// Pauses playback and emits a `Pause` event.
@@ -1410,7 +1430,7 @@ impl Player {
                 Some(Percentage::ONE_HUNDRED)
             } else {
                 // Return 0.0 when a queue position is set, but the track is not yet available.
-                if self.current_rx.is_none() {
+                if !self.is_loaded() {
                     return Some(Percentage::ZERO);
                 }
 

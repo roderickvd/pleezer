@@ -7,11 +7,16 @@ and [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/).
 
 ## [Unreleased]
 
+### Added
+- [player] `is_loaded()` function to check whether a track is loaded and ready to play
+
 ### Changed
 - [decrypt] Optimize decryption implementation for better performance
 - [main] Migrate to Rust 2024 edition
 
 ### Fixed
+- [player] Playback reporting was inconsistent in paused state
+- [player] Fixed double reporting of playback for the first track after startup
 - [remote] Correctly report end of last track
 
 ### Removed
