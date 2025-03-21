@@ -824,7 +824,7 @@ impl Client {
                     }
                 }
 
-                () = &mut self.reporting_timer, if self.is_connected() && self.player.is_playing() => {
+                () = &mut self.reporting_timer, if self.is_connected() => {
                     if let Err(e) = self.report_playback_progress().await {
                         error!("error reporting playback progress: {e}");
                     }
@@ -887,13 +887,16 @@ impl Client {
 
         debug!("handling event: {event:?}");
 
+        // Report playback progress without waiting for the next reporting interval,
+        // so the UI refreshes immediately
+        if let Event::Pause | Event::Play = event {
+            let _ = self.report_playback_progress().await;
+        }
+
+        // Next, execute the rest of the event handling logic
         match event {
             Event::Play => {
                 if let Some(track_id) = track_id {
-                    // Report playback progress without waiting for the next
-                    // reporting interval, so the UI refreshes immediately.
-                    let _ = self.report_playback_progress().await;
-
                     // Report the playback stream.
                     if let Err(e) = self.report_playback(track_id).await {
                         error!("error streaming {track_id}: {e}");

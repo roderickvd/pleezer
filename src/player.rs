@@ -616,10 +616,12 @@ impl Player {
                 self.current_rx = self.preload_rx.take();
             } else {
                 // Reached the end of the queue: rewind to the beginning.
+                self.set_position(0);
                 if repeat_mode != RepeatMode::All {
                     self.pause();
                 };
-                self.position = 0;
+                // Events will be handled by the event loop when starting at the beginning.
+                return;
             }
         }
 
@@ -972,24 +974,23 @@ impl Player {
             // Playback reporting happens every time a track starts playing or is unpaused.
             self.notify(Event::Play);
         }
+
         Ok(())
     }
 
-    /// Pauses playback.
+    /// Pauses playback and emits a `Pause` event.
     ///
-    /// Emits a Pause event if playback was actually playing.
-    /// Does nothing if already paused.
+    /// If playback was already paused, this function still emits a `Pause` event.
+    /// This is useful for reporting purposes, e.g. when a playlist is cycled back to the beginning.
     ///
     /// # Errors
     ///
     /// Returns error if audio device is not open.
     pub fn pause(&mut self) {
-        if self.is_playing() {
-            debug!("pausing playback");
-            // Don't care if the sink is already dropped: we're already "paused".
-            let _ = self.sink_mut().map(|sink| sink.pause());
-            self.notify(Event::Pause);
-        }
+        debug!("pausing playback");
+        // Don't care if the sink is already dropped: we're already "paused".
+        let _ = self.sink_mut().map(|sink| sink.pause());
+        self.notify(Event::Pause);
     }
 
     /// Returns whether playback is active.
@@ -1408,7 +1409,13 @@ impl Player {
             if track.is_livestream() {
                 Some(Percentage::ONE_HUNDRED)
             } else {
-                // The progress is the difference between the current position of the sink, which is the total duration played, and the time the current track started playing.
+                // Return 0.0 when a queue position is set, but the track is not yet available.
+                if self.current_rx.is_none() {
+                    return Some(Percentage::ZERO);
+                }
+
+                // The progress is the difference between the current position of the sink, which
+                // is the total duration played, and the time the current track started playing.
                 let duration = track.duration()?;
                 let progress = self.get_pos().saturating_sub(self.playing_since);
                 Some(Percentage::from_ratio(progress.div_duration_f32(duration)))
