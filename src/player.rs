@@ -611,9 +611,8 @@ impl Player {
         if repeat_mode != RepeatMode::One {
             let next = self.position.saturating_add(1);
             if next < self.queue.len() {
-                // Move to the next track, preloaded if possible.
+                // Move to the next track.
                 self.position = next;
-                self.current_rx = self.preload_rx.take();
             } else {
                 // Reached the end of the queue: rewind to the beginning.
                 self.set_position(0);
@@ -834,22 +833,40 @@ impl Player {
     /// * Track loading fails critically
     /// * Audio system fails
     pub async fn run(&mut self) -> Result<()> {
+        const RUN_FREQUENCY: Duration = Duration::from_millis(10);
         loop {
             match self.current_rx.as_mut() {
                 Some(current_rx) => {
-                    // Check if the current track has finished playing.
                     if current_rx.try_recv().is_ok() {
+                        // Case 1: Current track finished; advance to the next track.
                         // Save the point in time when the track finished playing.
                         self.playing_since = self.get_pos();
+                        self.current_rx = self.preload_rx.take();
                         self.go_next();
-                    }
-
-                    // Preload the next track for gapless playback
-                    if self.preload_rx.is_none()
+                    } else if self.repeat_mode == RepeatMode::One {
+                        // Case 2: To repeat the current track re-using the current download,
+                        // check if we are near the end of the track.
+                        let track = self.track().ok_or(Error::internal("no track to repeat"))?;
+                        if let Some(duration) = track.duration() {
+                            let remaining = duration.saturating_sub(self.get_pos());
+                            if remaining <= RUN_FREQUENCY * 2 {
+                                if self.set_progress(Percentage::ZERO).is_ok() {
+                                    // Count this as a new playback stream. This also refreshes the
+                                    // UI immediately.
+                                    self.notify(Event::Play);
+                                } else {
+                                    // If we failed to wind back to the beginning of the track,
+                                    // clear the player, so the event loop can download it again.
+                                    self.clear();
+                                }
+                            }
+                        }
+                    } else if self.preload_rx.is_none()
                         && self.is_playing()
                         && self.repeat_mode() != RepeatMode::One
                         && self.track().is_some_and(Track::is_complete)
                     {
+                        // Case 3: Preload the next track for gapless playback.
                         let next_position = self.position.saturating_add(1);
                         if let Some(next_track) = self.queue.get(next_position) {
                             let next_track_id = next_track.id();
@@ -897,7 +914,7 @@ impl Player {
             }
 
             // Yield to the runtime to allow other tasks to run.
-            tokio::time::sleep(Duration::from_millis(10)).await;
+            tokio::time::sleep(RUN_FREQUENCY).await;
         }
     }
 
@@ -1167,11 +1184,13 @@ impl Player {
         // need to drop the preload. This only works if the player is playing: only then does the
         // playback loop advance to the next track.
         if target == self.position.saturating_add(1)
+            && self.preload_rx.is_some()
             && self.is_playing()
-            && self.track().is_some_and(Track::is_complete)
-            && self.set_progress(Percentage::ONE_HUNDRED).is_ok()
         {
-            return;
+            match self.set_progress(Percentage::ONE_HUNDRED) {
+                Ok(()) => return,
+                Err(e) => warn!("failed to seek to end of current track: {e}"),
+            }
         }
 
         // Otherwise, clear the sink, which will drop any tracks and their downloads.
