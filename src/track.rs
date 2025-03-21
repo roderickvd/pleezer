@@ -942,9 +942,8 @@ impl Track {
                         "failed to start download of {} {self} from {host_str}: {err}",
                         self.typ
                     );
-                    continue;
                 }
-            };
+            }
         }
 
         Err(Error::unavailable(format!(
@@ -963,7 +962,7 @@ impl Track {
         } else {
             // For episodes, we can infer the codec from the URL.
             if let Some(ExternalUrl::Direct(url)) = &self.external_url {
-                if let Some(extension) = url.path().split('.').last() {
+                if let Some(extension) = url.path().split('.').next_back() {
                     if let Ok(codec) = extension.parse() {
                         self.codec = Some(codec);
                     }

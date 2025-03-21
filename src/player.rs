@@ -618,7 +618,7 @@ impl Player {
                 self.set_position(0);
                 if repeat_mode != RepeatMode::All {
                     self.pause();
-                };
+                }
                 // Events will be handled by the event loop when starting at the beginning.
                 return;
             }
@@ -759,7 +759,7 @@ impl Player {
                         }
                     }
                 }
-            };
+            }
 
             let rx = if difference == 0.0 {
                 // No normalization needed, just append the decoder.

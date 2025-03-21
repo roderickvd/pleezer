@@ -114,6 +114,7 @@
 
 use std::{
     collections::{HashMap, HashSet},
+    fmt::Write,
     ops::ControlFlow,
     pin::Pin,
     process::Command,
@@ -559,7 +560,7 @@ impl Client {
                     cookie_str.push(';');
                 }
                 let (name, value) = cookie.name_value();
-                cookie_str.push_str(&format!("{name}={value}"));
+                let _ = write!(cookie_str, "{name}={value}");
             }
         }
 
@@ -841,12 +842,8 @@ impl Client {
                                 continue;
                             }
 
-                            match self.handle_message(&message).await {
-                                ControlFlow::Continue(()) => continue,
-
-                                ControlFlow::Break(e) => {
-                                    break Err(Error::internal(format!("error handling message: {e}")));
-                                }
+                            if let ControlFlow::Break(e) = self.handle_message(&message).await {
+                                break Err(Error::internal(format!("error handling message: {e}")));
                             }
                         }
 

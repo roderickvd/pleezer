@@ -47,6 +47,8 @@ use rodio::{Sample, Source, source::SeekError};
 
 use crate::util::{self, ToF32, ZERO_DB};
 
+// TODO: Remove when https://github.com/rust-lang/rust-clippy/issues/14275 is fixed
+#[expect(clippy::doc_overindented_list_items)]
 /// Creates a normalized audio filter with configurable limiting.
 ///
 /// The limiter processes each channel independently for envelope detection but applies gain

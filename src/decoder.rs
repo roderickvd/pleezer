@@ -516,7 +516,6 @@ impl Decoder {
                     let codecs = symphonia::default::get_codecs();
                     self.decoder = codecs.make(&track.codec_params, &DecoderOptions::default())?;
                     self.reload_spec();
-                    continue;
                 }
 
                 // All other errors are unrecoverable.

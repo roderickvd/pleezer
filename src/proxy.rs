@@ -226,7 +226,7 @@ impl FromStr for Http {
                         BASE64_STANDARD.encode(format!("{}:{pwd}", url.username()))
                     );
                     basic_bytes = Some(encoded_str.into_bytes());
-                };
+                }
 
                 Ok(Self {
                     auth: basic_bytes,
