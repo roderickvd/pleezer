@@ -719,11 +719,15 @@ impl Gateway {
         self.http_client.execute(request).await?;
 
         // Then login and get an access token.
-        let query = Url::parse(&format!(
-            "{}?app_id={}&login={email}&password={password:x}&hash={hash:x}",
+        let query = Url::parse_with_params(
             Self::OAUTH_LOGIN_URL,
-            Self::OAUTH_CLIENT_ID,
-        ))?;
+            &[
+                ("app_id", Self::OAUTH_CLIENT_ID.to_string()),
+                ("login", email.to_string()),
+                ("password", format!("{password:x}")),
+                ("hash", format!("{hash:x}")),
+            ],
+        )?;
 
         let request = self.http_client.get(query.clone(), "");
         let response = self.http_client.execute(request).await?;
@@ -755,11 +759,10 @@ impl Gateway {
     /// * Authentication fails
     pub async fn login_with_arl(&mut self, arl: &Arl) -> Result<()> {
         // `c` for cookie (headers), `p` for payload (body)
-        let query = Url::parse(&format!(
-            "{}{}?jo=p&rto=c&i=p",
-            Self::JWT_AUTH_URL,
-            Self::JWT_ENDPOINT_LOGIN
-        ))?;
+        let query = Url::parse_with_params(
+            &format!("{}{}", Self::JWT_AUTH_URL, Self::JWT_ENDPOINT_LOGIN),
+            &[("jo", "p"), ("rto", "c"), ("i", "p")],
+        )?;
 
         let auth = auth::Jwt {
             arl: arl.to_string(),
@@ -786,11 +789,10 @@ impl Gateway {
     /// * Token renewal fails
     pub async fn renew_login(&mut self) -> Result<()> {
         // `c` for cookie (headers), `p` for payload (body)
-        let query = Url::parse(&format!(
-            "{}{}?jo=p&rto=c&i=c",
-            Self::JWT_AUTH_URL,
-            Self::JWT_ENDPOINT_RENEW
-        ))?;
+        let query = Url::parse_with_params(
+            &format!("{}{}", Self::JWT_AUTH_URL, Self::JWT_ENDPOINT_RENEW),
+            &[("jo", "p"), ("rto", "c"), ("i", "c")],
+        )?;
 
         let request = self.http_client.json(query, Self::EMPTY_JSON_OBJECT);
         self.http_client.execute(request).await?;
