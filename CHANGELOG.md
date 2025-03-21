@@ -16,7 +16,7 @@ and [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/).
 
 ### Fixed
 - [player] Playback reporting was inconsistent in paused state
-- [player] Fixed double reporting of playback for the first track after startup
+- [player] Double reporting of playback for the first track after startup
 - [remote] Correctly report end of last track
 
 ### Removed
