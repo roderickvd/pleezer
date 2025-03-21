@@ -842,21 +842,24 @@ impl Player {
                         // Save the point in time when the track finished playing.
                         self.playing_since = self.get_pos();
                         self.current_rx = self.preload_rx.take();
+                        if let Some(track) = self.track_mut() {
+                            // Finished tracks are dropped from the queue, which also removes
+                            // their associated download.
+                            track.reset_download();
+                        }
                         self.go_next();
                     } else if self.repeat_mode == RepeatMode::One {
                         // Case 2: To repeat the current track re-using the current download,
                         // check if we are near the end of the track.
-                        let track = self.track().ok_or(Error::internal("no track to repeat"))?;
-                        if let Some(duration) = track.duration() {
+                        if let Some(duration) = self.track().and_then(Track::duration) {
                             let remaining = duration.saturating_sub(self.get_pos());
                             if remaining <= RUN_FREQUENCY * 2 {
                                 if self.set_progress(Percentage::ZERO).is_ok() {
-                                    // Count this as a new playback stream. This also refreshes the
-                                    // UI immediately.
+                                    // Count this as a new playback stream and refresh the UI.
                                     self.notify(Event::Play);
                                 } else {
                                     // If we failed to wind back to the beginning of the track,
-                                    // clear the player, so the event loop can download it again.
+                                    // clear the player, so the run loop can download it again.
                                     self.clear();
                                 }
                             }

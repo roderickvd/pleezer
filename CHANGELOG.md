@@ -18,6 +18,7 @@ and [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/).
 - [player] Playback reporting was inconsistent in paused state
 - [player] Double reporting of playback for the first track after startup
 - [player] Incorrect single track repeat mode transitions
+- [player] Occassional stalled playback when skipping backward
 - [remote] Correctly report end of last track
 
 ### Removed
