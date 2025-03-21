@@ -282,8 +282,9 @@ impl NormalizeBase {
     ///
     /// Note: Only updates state, gain application is handled by the variant implementations to
     /// allow for coupled gain reduction across channels.
+    #[must_use]
     #[inline]
-    fn process_channel<S: Sample>(&self, sample: S, integrator: &mut f32, peak: &mut f32) {
+    fn process_channel<S: Sample>(&self, sample: S, integrator: &mut f32, peak: &mut f32) -> S {
         // step 0: apply gain stage
         let sample = sample.amplify(self.ratio);
 
@@ -297,6 +298,8 @@ impl NormalizeBase {
             self.release * *integrator + (1.0 - self.release) * limiter_db,
         );
         *peak = self.attack * *peak + (1.0 - self.attack) * *integrator;
+
+        sample
     }
 }
 
@@ -310,14 +313,14 @@ where
     /// Single channel implementation with direct state updates.
     #[inline]
     fn process_next(&mut self, sample: I::Item) -> I::Item {
-        self.base.process_channel(
+        let processed = self.base.process_channel(
             sample,
             &mut self.normalisation_integrator,
             &mut self.normalisation_peak,
         );
 
         // steps 6-8: conversion into level and multiplication into gain stage
-        sample.amplify(util::db_to_ratio(-self.normalisation_peak))
+        processed.amplify(util::db_to_ratio(-self.normalisation_peak))
     }
 }
 
@@ -335,7 +338,7 @@ where
         let channel = self.position as usize;
         self.position ^= 1;
 
-        self.base.process_channel(
+        let processed = self.base.process_channel(
             sample,
             &mut self.normalisation_integrators[channel],
             &mut self.normalisation_peaks[channel],
@@ -344,7 +347,7 @@ where
         // steps 6-8: conversion into level and multiplication into gain stage. Find maximum peak
         // across both channels to couple the gain and maintain stereo imaging.
         let max_peak = f32::max(self.normalisation_peaks[0], self.normalisation_peaks[1]);
-        sample.amplify(util::db_to_ratio(-max_peak))
+        processed.amplify(util::db_to_ratio(-max_peak))
     }
 }
 
@@ -361,7 +364,7 @@ where
         let channel = self.position;
         self.position = (self.position + 1) % self.normalisation_integrators.len();
 
-        self.base.process_channel(
+        let processed = self.base.process_channel(
             sample,
             &mut self.normalisation_integrators[channel],
             &mut self.normalisation_peaks[channel],
@@ -373,7 +376,7 @@ where
             .normalisation_peaks
             .iter()
             .fold(ZERO_DB, |max, &peak| f32::max(max, peak));
-        sample.amplify(util::db_to_ratio(-max_peak))
+        processed.amplify(util::db_to_ratio(-max_peak))
     }
 }
 
