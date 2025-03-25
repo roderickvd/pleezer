@@ -736,7 +736,7 @@ impl Player {
                 // at the beginning anyway, and this prevents decoder errors.
                 if !progress.is_zero() {
                     if let Err(e) = decoder.try_seek(progress) {
-                        error!("failed to seek to deferred position: {}", e);
+                        error!("failed to seek to deferred position: {e}");
                     }
                 }
             }

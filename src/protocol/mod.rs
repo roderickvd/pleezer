@@ -89,14 +89,14 @@ where
 {
     match serde_json::from_str(body) {
         Ok(result) => {
-            trace!("{}: {result:#?}", origin);
+            trace!("{origin}: {result:#?}");
             Ok(result)
         }
         Err(e) => {
             if let Ok(json) = serde_json::from_str::<serde_json::Value>(body) {
-                trace!("{}: {json:#?}", origin);
+                trace!("{origin}: {json:#?}");
             } else {
-                error!("{}: failed parsing response ({e:?})", origin);
+                error!("{origin}: failed parsing response ({e:?})");
                 trace!("{body}");
             }
             Err(e.into())

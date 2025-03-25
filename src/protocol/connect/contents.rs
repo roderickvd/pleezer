@@ -2940,10 +2940,7 @@ impl TryFrom<WireBody> for Body {
                     } = params
                     {
                         if !WireBody::supports_control_versions(&supported_control_versions) {
-                            warn!(
-                                "control versions {:?} are unknown",
-                                supported_control_versions
-                            );
+                            warn!("control versions {supported_control_versions:?} are unknown");
                         }
 
                         Self::ConnectionOffer {
