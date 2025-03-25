@@ -59,7 +59,7 @@ exponential-backoff = "2.0"
 fastrand = "2.3"
 flate2 = "1.1"
 futures-util = { version = "0.3", default-features = false }
-governor = { version = "0.8", default-features = false, features = ["std"] }
+governor = { version = "0.9", default-features = false, features = ["std"] }
 http = "1.2"
 log = "0.4"
 machine-uid = "0.5"
