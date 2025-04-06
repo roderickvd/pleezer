@@ -168,10 +168,6 @@ While we do not have a formal performance testing process, manual testing is enc
 6. **Testing**: While writing new tests is encouraged, it's not required at this stage as we do not yet have a test harness. Just make sure your code passes any existing tests.
 7. **Documentation**: Contributions to documentation are highly valued. If your pull request includes changes that require documentation updates, please include them.
 
-We will acknowledge contributors in the release notes unless they choose to opt out. Sponsoring the project via [GitHub Sponsors](https://github.com/sponsors/roderickvd) is also a meaningful way to contribute.
-
-By contributing, you agree that your code will be licensed under the terms of the [Sustainable Use License](https://github.com/roderickvd/pleezer/blob/main/LICENSE.md).
-
 ### Security
 
 Please refer to the [Security Policy](https://github.com/roderickvd/pleezer/blob/main/SECURITY.md) for information on how to report security vulnerabilities. Do not use GitHub issues or discussions for reporting security vulnerabilities.
@@ -194,3 +190,7 @@ If you wish to support the project financially, you can do so through the [GitHu
 ### Acknowledgments
 
 We appreciate all contributions to **pleezer**. We will acknowledge contributors in the release notes unless they choose to opt out.
+
+### Licensing
+
+Unless contributors explicitly state otherwise, any contribution intentionally submitted for inclusion in **pleezer** shall be licensed under the terms of the [Sustainable Use License](https://github.com/roderickvd/pleezer/blob/main/LICENSE.md), without any additional terms or conditions.
