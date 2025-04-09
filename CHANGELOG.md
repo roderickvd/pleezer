@@ -10,6 +10,9 @@ and [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/).
 ## Added
 - [player] `--max-ram` command-line option to store audio files in RAM instead of disk (#65)
 
+## Changed
+- [player] Preload next track only when nearing the end of the current track
+
 ## [0.14.2] - 2025-04-06
 
 ### Fixed

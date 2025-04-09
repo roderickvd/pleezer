@@ -411,7 +411,7 @@ impl Track {
     /// * Time to download more data
     /// * Protection against minor network issues
     /// * Reasonable startup latency
-    const PREFETCH_DURATION: Duration = Duration::from_secs(3);
+    pub const PREFETCH_DURATION: Duration = Duration::from_secs(3);
 
     /// Default prefetch size in bytes when bitrate is unknown.
     ///

@@ -914,7 +914,18 @@ impl Player {
                     } else if self.preload_rx.is_none()
                         && self.is_playing()
                         && self.repeat_mode() != RepeatMode::One
-                        && self.track().is_some_and(Track::is_complete)
+                        && self.track().is_some_and(|track| {
+                            // When the current track is fully downloaded...
+                            track.is_complete()
+                            // ...and we are nearing the end
+                                && self.progress().is_some_and(|progress| {
+                                    let remaining = track
+                                        .duration()
+                                        .unwrap_or(Duration::ZERO)
+                                        .mul_f32((1.0 - progress.as_ratio()).clamp(0.0, 1.0));
+                                    remaining <= Track::PREFETCH_DURATION * 2
+                                })
+                        })
                     {
                         // Case 3: Preload the next track for gapless playback.
                         let next_position = self.position.saturating_add(1);
