@@ -1111,7 +1111,7 @@ impl Track {
         self.init_download(&url);
 
         // Calculate the prefetch size based on the bitrate and duration.
-        let prefetch_size = self.prefetch_size();
+        let prefetch_size = self.prefetch_size().try_into()?;
         trace!(
             "prefetch size for {} {self}: {prefetch_size} bytes",
             self.typ
@@ -1302,10 +1302,14 @@ impl Track {
     /// * Initial buffering before playback starts
     /// * Configuring storage buffer size
     #[must_use]
-    pub fn prefetch_size(&self) -> u64 {
-        let mut prefetch_size = Self::PREFETCH_DEFAULT as u64;
+    pub fn prefetch_size(&self) -> usize {
+        let mut prefetch_size = Self::PREFETCH_DEFAULT;
         if let Some(kbps) = self.bitrate {
-            prefetch_size = (kbps as u64 * 1000 / 8) * Self::PREFETCH_DURATION.as_secs();
+            prefetch_size = (kbps * 1000 / 8)
+                * Self::PREFETCH_DURATION
+                    .as_secs()
+                    .try_into()
+                    .unwrap_or(usize::MAX);
         }
         prefetch_size
     }

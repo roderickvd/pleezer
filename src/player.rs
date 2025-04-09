@@ -62,7 +62,9 @@ use std::{collections::HashSet, sync::Arc, time::Duration};
 use cpal::traits::{DeviceTrait, HostTrait};
 use md5::{Digest, Md5};
 use rodio::Source;
-use stream_download::storage::{adaptive::AdaptiveStorageProvider, temp::TempStorageProvider};
+use stream_download::storage::{
+    adaptive::AdaptiveStorageProvider, memory::MemoryStorageProvider, temp::TempStorageProvider,
+};
 use url::Url;
 
 use crate::{
@@ -230,6 +232,10 @@ pub struct Player {
     ///
     /// Used to construct track download URLs.
     media_url: Url,
+
+    /// Maximum RAM in bytes that can be used for storing audio files.
+    /// `None` means use temporary files instead of RAM.
+    max_ram: Option<u64>,
 }
 
 impl Player {
@@ -314,6 +320,7 @@ impl Player {
             sink: None,
             stream: None,
             sources: None,
+            max_ram: config.max_ram,
         })
     }
 
@@ -685,10 +692,21 @@ impl Player {
     /// * Track download fails
     /// * Audio decoding fails
     // TODO : consider controlflow
+    #[expect(clippy::too_many_lines)]
     async fn load_track(
         &mut self,
         position: usize,
     ) -> Result<Option<std::sync::mpsc::Receiver<()>>> {
+        // The current RAM usage is determined by the current track's file size, if that would fit
+        // within the maximum allowed RAM. Otherwise, the current track is stored in a temporary
+        // file.
+        let mut ram_usage = self.track().and_then(Track::file_size).unwrap_or(0);
+        if let Some(max_ram) = self.max_ram {
+            if ram_usage > max_ram {
+                ram_usage = 0;
+            }
+        }
+
         let track = self
             .queue
             .get_mut(position)
@@ -711,10 +729,39 @@ impl Player {
                     )
                     .await?;
 
-                let prefetch_size = usize::try_from(track.prefetch_size()).unwrap_or(usize::MAX);
-                let storage = AdaptiveStorageProvider::new(
+                // The default buffer size is determined by the track's prefetch size. This is
+                // overridden with the available RAM, if the maximum RAM was configured and the
+                // track is not a livestream.
+                let mut buffer_size = track.prefetch_size();
+                if let Some(max_ram) = self.max_ram {
+                    if !track.is_livestream() {
+                        let ram_left = max_ram
+                            .saturating_sub(ram_usage)
+                            .try_into()
+                            .unwrap_or(usize::MAX);
+
+                        debug!(
+                            "memory reserved before start of download: {} MB, left: {} MB",
+                            ram_usage / (1024 * 1024),
+                            ram_left / (1024 * 1024)
+                        );
+
+                        // never go below the prefetch size set before
+                        if ram_left > buffer_size {
+                            buffer_size = ram_left;
+                        }
+                    }
+                }
+
+                // This will set up the storage as follows:
+                // - livestreams: stored in RAM, bounded by the prefetch size
+                // - non-livestreams, no maximum RAM set: stored in temporary files
+                // - non-livestreams, maximum RAM set: stored in RAM if the RAM left is sufficient,
+                // or temporary files otherwise
+                let storage = AdaptiveStorageProvider::with_fixed_and_variable(
+                    MemoryStorageProvider,
                     TempStorageProvider::default(),
-                    prefetch_size
+                    buffer_size
                         .try_into()
                         .map_err(|e| Error::internal(format!("prefetch size error: {e}")))?,
                 );

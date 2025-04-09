@@ -139,6 +139,10 @@ pub struct Config {
     /// None means no volume override.
     pub initial_volume: Option<Percentage>,
 
+    /// Maximum amount of RAM in bytes that can be used for storing audio files.
+    /// `None` means use temporary files instead of RAM.
+    pub max_ram: Option<u64>,
+
     /// Whether other clients may take over an existing connection.
     ///
     /// By default this is `true`.

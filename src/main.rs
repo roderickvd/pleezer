@@ -148,10 +148,22 @@ struct Args {
     /// Useful for clients that don't correctly set volume levels.
     #[arg(
         long,
+        value_name = "PERCENTAGE",
         value_parser = clap::value_parser!(u8).range(0..=100),
         env = "PLEEZER_INITIAL_VOLUME"
     )]
     initial_volume: Option<u8>,
+
+    /// Maximum RAM (in MB) to use for storing audio files in memory
+    ///
+    /// If not specified or if a track exceeds this limit, temporary files will be used.
+    #[arg(
+        long,
+        value_name = "MEGABYTES",
+        value_parser = clap::value_parser!(u64).range(1..=1024*1024), // Allow 1MB to 1TB
+        env = "PLEEZER_MAX_RAM"
+    )]
+    max_ram: Option<u64>,
 
     /// Prevent other clients from taking over the connection
     ///
@@ -459,6 +471,8 @@ async fn run(args: Args) -> Result<ShutdownSignal> {
                 .initial_volume
                 .map(|volume| Percentage::from_percent(volume as f32)),
 
+            // Convert MB to bytes
+            max_ram: args.max_ram.map(|mb| mb * 1024 * 1024),
             hook: args.hook,
 
             client_id,

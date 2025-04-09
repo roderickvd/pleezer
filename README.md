@@ -247,6 +247,17 @@ Your music will then play through **pleezer** while being controlled from your m
     pleezer --initial-volume 50  # Start at 50% volume
     ```
 
+- `--max-ram`: Maximum RAM (in MB) to use for storing audio files in memory. If not specified or if a track exceeds this limit, temporary files will be used. Example:
+    ```bash
+    pleezer --max-ram 64  # Store tracks in RAM if under 64MB
+    ```
+
+    As a guide for sizing:
+    - For 320 kbps MP3: ~15MB for a typical 5-minute track
+    - For FLAC: ~30-50MB for a typical 5-minute track
+
+    Consider allowing at least double these amounts to accommodate both current and preloaded tracks. For example, `--max-ram 100` should comfortably handle most MP3 tracks, while `--max-ram 200` would handle most FLAC tracks.
+
 - `--no-interruptions`: Prevent other clients from taking over the connection after **pleezer** has connected. By default, interruptions are allowed. Example:
     ```bash
     pleezer --no-interruptions

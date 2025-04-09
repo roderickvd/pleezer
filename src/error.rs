@@ -895,3 +895,9 @@ impl From<std::net::AddrParseError> for Error {
         Self::invalid_argument(e)
     }
 }
+
+impl From<std::num::TryFromIntError> for Error {
+    fn from(e: std::num::TryFromIntError) -> Self {
+        Self::invalid_argument(e)
+    }
+}

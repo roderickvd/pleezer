@@ -7,6 +7,9 @@ and [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/).
 
 ## [Unreleased]
 
+## Added
+- [player] `--max-ram` command-line option to store audio files in RAM instead of disk (#65)
+
 ## [0.14.2] - 2025-04-06
 
 ### Fixed
