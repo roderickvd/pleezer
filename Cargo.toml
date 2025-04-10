@@ -1,6 +1,6 @@
 [package]
 name = "pleezer"
-version = "0.14.2"
+version = "0.15.0"
 authors = ["Roderick van Domburg"]
 description = "Headless Deezer Connect player"
 edition = "2024"
@@ -27,18 +27,18 @@ maintenance = { status = "actively-developed" }
 [features]
 default = ["binary"]
 
-## Enable command-line interface and binary build
+# Enable command-line interface and binary build
 binary = ["dep:clap"]
 
-## Enable ASIO (Audio Stream Input/Output) backend for low-latency audio (Windows only)
-## Requires Steinberg ASIO SDK and additional build setup
-## See: https://docs.rs/crate/cpal/latest
+# Enable ASIO (Audio Stream Input/Output) backend for low-latency audio (Windows only)
+# Requires Steinberg ASIO SDK and additional build setup
+# See: https://docs.rs/crate/cpal/latest
 asio = ["cpal/asio"]
 
-## Enable JACK (JACK Audio Connection Kit) backend for low-latency audio with flexible routing  (Linux only)
-## Requires JACK development files:
-## - Debian/Ubuntu: libjack-dev
-## - Fedora: jack-audio-connection-kit-devel
+# Enable JACK (JACK Audio Connection Kit) backend for low-latency audio with flexible routing  (Linux only)
+# Requires JACK development files:
+# - Debian/Ubuntu: libjack-dev
+# - Fedora: jack-audio-connection-kit-devel
 jack = ["cpal/jack"]
 
 [patch.crates-io]
