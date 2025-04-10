@@ -228,6 +228,9 @@ pub struct Player {
     /// would finish. Used for gapless playback.
     preload_rx: Option<std::sync::mpsc::Receiver<()>>,
 
+    /// When to start preloading next track.
+    preload_start: Duration,
+
     /// Base URL for media content.
     ///
     /// Used to construct track download URLs.
@@ -316,6 +319,7 @@ impl Player {
             deferred_seek: None,
             current_rx: None,
             preload_rx: None,
+            preload_start: Duration::ZERO,
             device: device.to_owned(),
             sink: None,
             stream: None,
@@ -632,6 +636,7 @@ impl Player {
         }
 
         if self.position() != old_position {
+            self.preload_start = self.calc_preload_start(self.track().and_then(Track::duration));
             self.notify(Event::TrackChanged);
         }
 
@@ -915,16 +920,7 @@ impl Player {
                         && self.is_playing()
                         && self.repeat_mode() != RepeatMode::One
                         && self.track().is_some_and(|track| {
-                            // When the current track is fully downloaded...
-                            track.is_complete()
-                            // ...and we are nearing the end
-                                && self.progress().is_some_and(|progress| {
-                                    let remaining = track
-                                        .duration()
-                                        .unwrap_or(Duration::ZERO)
-                                        .mul_f32((1.0 - progress.as_ratio()).clamp(0.0, 1.0));
-                                    remaining <= Track::PREFETCH_DURATION * 2
-                                })
+                            track.is_complete() && self.get_pos() >= self.preload_start
                         })
                     {
                         // Case 3: Preload the next track for gapless playback.
@@ -951,6 +947,7 @@ impl Player {
                     if let Some(track) = self.track() {
                         let track_id = track.id();
                         let track_typ = track.typ();
+                        let track_dur = track.duration();
                         if self.skip_tracks.contains(&track_id) {
                             self.go_next();
                         } else {
@@ -958,6 +955,7 @@ impl Player {
                                 Ok(rx) => {
                                     if let Some(rx) = rx {
                                         self.current_rx = Some(rx);
+                                        self.preload_start = self.calc_preload_start(track_dur);
                                         self.notify(Event::TrackChanged);
                                         if self.is_playing() {
                                             self.notify(Event::Play);
@@ -977,6 +975,13 @@ impl Player {
             // Yield to the runtime to allow other tasks to run.
             tokio::time::sleep(RUN_FREQUENCY).await;
         }
+    }
+
+    fn calc_preload_start(&self, track_duration: Option<Duration>) -> Duration {
+        self.get_pos()
+            .saturating_add(track_duration.map_or(Duration::ZERO, |duration| {
+                duration.saturating_sub(Track::PREFETCH_DURATION.saturating_mul(2))
+            }))
     }
 
     /// Marks a track as unavailable for playback.
