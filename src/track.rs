@@ -1194,15 +1194,12 @@ impl Track {
 
     /// Returns whether the track download is complete.
     ///
-    /// A track is complete when the buffered duration equals
-    /// the total track duration.
-    ///
     /// For livestreams, always returns false since they are continuous
     /// streams that can't be fully buffered.
     #[must_use]
     #[inline]
     pub fn is_complete(&self) -> bool {
-        self.duration == self.buffered()
+        self.buffered() >= self.duration
     }
 
     /// Resets the track's download state.

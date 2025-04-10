@@ -917,11 +917,8 @@ impl Player {
                             }
                         }
                     } else if self.preload_rx.is_none()
-                        && self.is_playing()
-                        && self.repeat_mode() != RepeatMode::One
-                        && self.track().is_some_and(|track| {
-                            track.is_complete() && self.get_pos() >= self.preload_start
-                        })
+                        && self.track().is_some_and(Track::is_complete)
+                        && self.get_pos() >= self.preload_start
                     {
                         // Case 3: Preload the next track for gapless playback.
                         let next_position = self.position.saturating_add(1);
