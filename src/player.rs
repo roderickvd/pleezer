@@ -746,12 +746,12 @@ impl Player {
                             .unwrap_or(usize::MAX);
 
                         debug!(
-                            "memory reserved before start of download: {} MB, left: {} MB",
-                            ram_usage / (1024 * 1024),
-                            ram_left / (1024 * 1024)
+                            "memory reserved before start of download: {} KB, left: {} KB",
+                            ram_usage / 1024,
+                            ram_left / 1024
                         );
 
-                        // never go below the prefetch size set before
+                        // never go below the prefetch size that was set before
                         if ram_left > buffer_size {
                             buffer_size = ram_left;
                         }
@@ -896,7 +896,7 @@ impl Player {
                         self.current_rx = self.preload_rx.take();
                         if let Some(track) = self.track_mut() {
                             // Finished tracks are dropped from the queue, which also removes
-                            // their associated download.
+                            // their associated download, so reset the state.
                             track.reset_download();
                         }
                         self.go_next();
