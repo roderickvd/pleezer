@@ -227,6 +227,7 @@ pub const ZERO_DB: f32 = 0.0;
 ///
 /// Linear amplitude ratio corresponding to the decibel value
 #[must_use]
+#[inline]
 pub fn db_to_ratio(db: f32) -> f32 {
     if db == ZERO_DB {
         UNITY_GAIN
@@ -250,6 +251,7 @@ pub fn db_to_ratio(db: f32) -> f32 {
 ///
 /// Decibel value corresponding to the amplitude ratio
 #[must_use]
+#[inline]
 pub fn ratio_to_db(ratio: f32) -> f32 {
     if ratio == UNITY_GAIN {
         ZERO_DB
