@@ -773,6 +773,7 @@ impl From<rodio::StreamError> for Error {
             BuildStreamError(e) => Self::unavailable(e),
             SupportedStreamConfigsError(e) => Self::not_found(e),
             NoDevice => Self::not_found(e),
+            UnsupportedSampleFormat => Self::unimplemented(e),
         }
     }
 }
@@ -810,7 +811,6 @@ impl From<rodio::PlayError> for Error {
     fn from(e: rodio::PlayError) -> Self {
         use rodio::PlayError::*;
         match e {
-            DecoderError(e) => Self::data_loss(e),
             NoDevice => Self::not_found(e),
         }
     }

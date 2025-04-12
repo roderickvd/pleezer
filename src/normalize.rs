@@ -86,7 +86,6 @@ pub fn normalize<I>(
 ) -> Normalize<I>
 where
     I: Source,
-    I::Item: Sample,
 {
     let sample_rate = input.sample_rate();
     let attack = duration_to_coefficient(attack, sample_rate);
@@ -163,7 +162,6 @@ fn duration_to_coefficient(duration: Duration, sample_rate: u32) -> f32 {
 pub enum Normalize<I>
 where
     I: Source,
-    I::Item: Sample,
 {
     Mono(NormalizeMono<I>),
     Stereo(NormalizeStereo<I>),
@@ -248,10 +246,10 @@ pub struct NormalizeMulti<I> {
 ///
 /// Amount of gain reduction to apply in dB
 #[inline]
-fn process_sample<S: Sample>(sample: S, threshold: f32, knee_width: f32) -> f32 {
+fn process_sample(sample: Sample, threshold: f32, knee_width: f32) -> f32 {
     // Add slight DC offset. Some samples are silence, which is -inf dB and gets the limiter stuck.
     // Adding a small positive offset prevents this.
-    let sample_f32 = sample.to_f32() + f32::MIN_POSITIVE;
+    let sample_f32 = sample + f32::MIN_POSITIVE;
     let bias_db = util::ratio_to_db(sample_f32.abs()) - threshold;
     let knee_boundary_db = bias_db * 2.0;
     if knee_boundary_db < -knee_width {
@@ -286,9 +284,9 @@ impl NormalizeBase {
     /// allow for coupled gain reduction across channels.
     #[must_use]
     #[inline]
-    fn process_channel<S: Sample>(&self, sample: S, integrator: &mut f32, peak: &mut f32) -> S {
+    fn process_channel(&self, sample: Sample, integrator: &mut f32, peak: &mut f32) -> Sample {
         // step 0: apply gain stage
-        let sample = sample.amplify(self.ratio);
+        let sample = sample * self.ratio;
 
         // step 1-4: half-wave rectification and conversion into dB, and gain computer with soft
         // knee and subtractor
@@ -308,7 +306,6 @@ impl NormalizeBase {
 impl<I> NormalizeMono<I>
 where
     I: Source,
-    I::Item: Sample,
 {
     /// Processes the next mono sample through the limiter.
     ///
@@ -322,14 +319,13 @@ where
         );
 
         // steps 6-8: conversion into level and multiplication into gain stage
-        processed.amplify(util::db_to_ratio(-self.normalisation_peak))
+        processed * util::db_to_ratio(-self.normalisation_peak)
     }
 }
 
 impl<I> NormalizeStereo<I>
 where
     I: Source,
-    I::Item: Sample,
 {
     /// Processes the next stereo sample through the limiter.
     ///
@@ -349,14 +345,13 @@ where
         // steps 6-8: conversion into level and multiplication into gain stage. Find maximum peak
         // across both channels to couple the gain and maintain stereo imaging.
         let max_peak = f32::max(self.normalisation_peaks[0], self.normalisation_peaks[1]);
-        processed.amplify(util::db_to_ratio(-max_peak))
+        processed * util::db_to_ratio(-max_peak)
     }
 }
 
 impl<I> NormalizeMulti<I>
 where
     I: Source,
-    I::Item: Sample,
 {
     /// Processes the next multi-channel sample through the limiter.
     ///
@@ -378,14 +373,13 @@ where
             .normalisation_peaks
             .iter()
             .fold(ZERO_DB, |max, &peak| f32::max(max, peak));
-        processed.amplify(util::db_to_ratio(-max_peak))
+        processed * util::db_to_ratio(-max_peak)
     }
 }
 
 impl<I> Normalize<I>
 where
     I: Source,
-    I::Item: Sample,
 {
     /// Returns a reference to the inner audio source.
     ///
@@ -436,7 +430,6 @@ where
 impl<I> Iterator for Normalize<I>
 where
     I: Source,
-    I::Item: Sample,
 {
     type Item = I::Item;
 
@@ -477,14 +470,13 @@ where
 impl<I> Source for Normalize<I>
 where
     I: Source,
-    I::Item: Sample,
 {
     /// Returns the number of samples in the current audio frame.
     ///
     /// Delegates to inner source to maintain frame alignment.
     #[inline]
-    fn current_frame_len(&self) -> Option<usize> {
-        self.inner().current_frame_len()
+    fn current_span_len(&self) -> Option<usize> {
+        self.inner().current_span_len()
     }
 
     /// Returns the number of channels in the audio stream.

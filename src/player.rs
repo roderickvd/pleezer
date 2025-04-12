@@ -210,7 +210,7 @@ pub struct Player {
     ///
     /// Contains decoded and processed audio data ready for playback.
     /// Only available when device is open (between `start()` and `stop()`).
-    sources: Option<Arc<rodio::queue::SourcesQueueInput<SampleFormat>>>,
+    sources: Option<Arc<rodio::queue::SourcesQueueInput>>,
 
     /// When current track started playing.
     ///
@@ -478,8 +478,11 @@ impl Player {
         debug!("opening output device");
 
         let (device, device_config) = Self::get_device(&self.device)?;
-        let (stream, handle) = rodio::OutputStream::try_from_device_config(&device, device_config)?;
-        let sink = rodio::Sink::try_new(&handle)?;
+        let stream_handle = rodio::OutputStreamBuilder::default()
+            .with_device(device)
+            .with_supported_config(&device_config)
+            .open_stream()?;
+        let sink = rodio::Sink::connect_new(stream_handle.mixer());
 
         // Set the volume to the last known value. Do not use `self.set_volume` because
         // it will short-circuit when trying to set the volume to what `self.volume` already is.
@@ -494,7 +497,7 @@ impl Player {
 
         self.sink = Some(sink);
         self.sources = Some(sources);
-        self.stream = Some(stream);
+        self.stream = Some(stream_handle);
 
         Ok(())
     }

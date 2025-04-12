@@ -512,7 +512,7 @@ impl rodio::Source for Decoder {
     /// Returns the number of samples left in the current decoded frame.
     ///
     /// Returns `None` if no frame is currently buffered.
-    fn current_frame_len(&self) -> Option<usize> {
+    fn current_span_len(&self) -> Option<usize> {
         self.buffer.as_ref().map(SampleBuffer::len)
     }
 
