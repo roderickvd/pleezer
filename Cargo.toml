@@ -95,6 +95,7 @@ thiserror = "2"
 time = "0.3"
 tokio = { version = "1", features = [
     "macros",
+    "process",
     "signal",
     "rt-multi-thread",
     "time",

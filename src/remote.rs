@@ -117,7 +117,6 @@ use std::{
     fmt::Write,
     ops::ControlFlow,
     pin::Pin,
-    process::Command,
     time::Duration,
 };
 
@@ -125,6 +124,7 @@ use futures_util::{SinkExt, StreamExt, stream::SplitSink};
 use log::Level;
 use semver;
 use time::OffsetDateTime;
+use tokio::process::Command;
 use tokio_tungstenite::{
     MaybeTlsStream, WebSocketStream,
     tungstenite::{
@@ -1005,8 +1005,19 @@ impl Client {
         }
 
         if let Some(command) = command.as_mut() {
-            if let Err(e) = command.spawn() {
-                error!("failed to spawn hook script: {e}");
+            match command.spawn() {
+                Ok(mut child) => match child.wait().await {
+                    Ok(status) => {
+                        if !status.success() {
+                            error!(
+                                "hook script exited with error {}",
+                                status.code().unwrap_or(-1)
+                            );
+                        }
+                    }
+                    Err(e) => error!("failed to wait for hook script: {e}"),
+                },
+                Err(e) => error!("failed to spawn hook script: {e}"),
             }
         }
     }

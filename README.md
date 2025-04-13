@@ -352,7 +352,9 @@ The proxy settings will be automatically detected and used for all Deezer Connec
 
 ### Hook Scripts
 
-You can use the `--hook` option to specify a script that will be executed when certain events occur. The script will receive information about these events through environment variables.
+You can use the `--hook` option to specify a script that will be executed whenever certain events occur (like starting a song or pausing playback). The script will receive information about these events through environment variables.
+
+**Important:** Keep your hook scripts quick and simple. If you need to perform time-consuming operations (like uploading data or processing files), make sure to run those in the background (for example, using `&` in shell scripts) to avoid affecting pleezer's performance.
 
 #### Event Types
 
@@ -422,30 +424,24 @@ Emitted when the controller disconnects
 #### Example
 Note: The script must properly escape received values to prevent command injection when using them in shell commands. In bash, `printf %q` provides safe escaping:
 
+#### Example
+When using event variables in shell commands, always use `printf %q` to safely escape the values:
+
 ```bash
 #!/bin/bash
 # example-hook.sh
-echo "Event: $EVENT"
 case "$EVENT" in
 "track_changed")
-    # Use printf %q to prevent command injection when using values in commands
-    echo "Track changed: $(printf %q "$TITLE") by $(printf %q "$ARTIST")"
-    echo "Input format: $(printf %q "$FORMAT")"
-    echo "Decoded as: $(printf %q "$DECODER")"
-    ;;
-"connected")
-    echo "Connected as: $(printf %q "$USER_NAME")"
+    # Safely print track info by escaping special characters
+    echo "Now playing: $(printf %q "$TITLE") by $(printf %q "$ARTIST")"
+
+    # Safely pass variables to background tasks
+    update_home_automation "$(printf %q "$TITLE")" "$(printf %q "$ARTIST")" &
     ;;
 esac
 ```
 
-Example output:
-```
-Event: track_changed
-Track changed: "Example Song" by "Example Artist"
-Input format: "MP3 320K"
-Decoded as: "PCM 16 bit 44.1 kHz, Stereo"
-```
+This prevents problems that could occur with special characters in titles or artist names.
 
 ### Stateless Configuration
 
