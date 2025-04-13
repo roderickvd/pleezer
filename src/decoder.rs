@@ -33,7 +33,7 @@
 
 use std::{io, time::Duration};
 
-use rodio::source::SeekError;
+use rodio::{ChannelCount, SampleRate, source::SeekError};
 use symphonia::{
     core::{
         audio::SampleBuffer,
@@ -308,7 +308,7 @@ impl Decoder {
     ///
     /// Panics if the channel count exceeds the maximum value for `u16`.
     #[must_use]
-    fn calc_channels(codec_params: &CodecParameters) -> Option<u16> {
+    fn calc_channels(codec_params: &CodecParameters) -> Option<ChannelCount> {
         codec_params
             .channels
             .map(|channels| channels.count().try_into().expect("channel count overflow"))
@@ -316,7 +316,7 @@ impl Decoder {
 
     /// Gets sample rate from codec parameters, defaulting to 44.1 kHz if unspecified.
     #[must_use]
-    fn calc_sample_rate(codec_params: &CodecParameters) -> u32 {
+    fn calc_sample_rate(codec_params: &CodecParameters) -> SampleRate {
         codec_params.sample_rate.unwrap_or(DEFAULT_SAMPLE_RATE)
     }
 
@@ -517,12 +517,12 @@ impl rodio::Source for Decoder {
     }
 
     /// Returns the number of channels in the audio stream.
-    fn channels(&self) -> u16 {
+    fn channels(&self) -> ChannelCount {
         self.channels
     }
 
     /// Returns the sample rate of the audio stream in Hz.
-    fn sample_rate(&self) -> u32 {
+    fn sample_rate(&self) -> SampleRate {
         self.sample_rate
     }
 

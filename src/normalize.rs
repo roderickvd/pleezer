@@ -43,7 +43,7 @@
 
 use std::time::Duration;
 
-use rodio::{Sample, Source, source::SeekError};
+use rodio::{ChannelCount, Sample, SampleRate, Source, source::SeekError};
 
 use crate::util::{self, ToF32, ZERO_DB};
 
@@ -137,7 +137,7 @@ where
 ///
 /// Smoothing coefficient in the range [0.0, 1.0]
 #[must_use]
-fn duration_to_coefficient(duration: Duration, sample_rate: u32) -> f32 {
+fn duration_to_coefficient(duration: Duration, sample_rate: SampleRate) -> f32 {
     f32::exp(-1.0 / (duration.as_secs_f32() * sample_rate.to_f32_lossy()))
 }
 
@@ -485,12 +485,12 @@ where
     /// * 1: Mono
     /// * 2: Stereo
     /// * >2: MultiChannel
-    fn channels(&self) -> u16 {
+    fn channels(&self) -> ChannelCount {
         self.inner().channels()
     }
 
     /// Returns the audio sample rate in Hz.
-    fn sample_rate(&self) -> u32 {
+    fn sample_rate(&self) -> SampleRate {
         self.inner().sample_rate()
     }
 
