@@ -11,7 +11,8 @@
 //!
 //! # Audio Constants
 //!
-//! * `DB_VOLTAGE_RATIO`: 20.0 (for voltage/amplitude calculations)
+//! * `DB_TO_VOLTAGE`: 0.05 (for voltage/amplitude calculations)
+//! * `VOLTAGE_TO_DB`: 20.0 (for voltage/amplitude calculations)
 //! * `UNITY_GAIN`: 1.0 (no amplification/attenuation)
 //! * `ZERO_DB`: 0.0 (reference level)
 //!
@@ -202,9 +203,11 @@ impl ToF32 for usize {
     }
 }
 
-/// Constant for converting between decibels and voltage ratios.
-/// Used in audio calculations where amplitude ratios are involved.
-pub const DB_VOLTAGE_RATIO: f32 = 20.0;
+/// Multiplier for converting from decibels to voltage ratio (0.05)
+pub const DB_TO_VOLTAGE: f32 = 0.05;
+
+/// Multiplier for converting from voltage ratio to decibels (20.0)
+pub const VOLTAGE_TO_DB: f32 = 20.0;
 
 /// Unity gain (no amplification or attenuation).
 pub const UNITY_GAIN: f32 = 1.0;
@@ -232,7 +235,7 @@ pub fn db_to_ratio(db: f32) -> f32 {
     if db == ZERO_DB {
         UNITY_GAIN
     } else {
-        f32::powf(10.0, db / DB_VOLTAGE_RATIO)
+        f32::powf(10.0, db * DB_TO_VOLTAGE)
     }
 }
 
@@ -256,6 +259,6 @@ pub fn ratio_to_db(ratio: f32) -> f32 {
     if ratio == UNITY_GAIN {
         ZERO_DB
     } else {
-        ratio.log10() * DB_VOLTAGE_RATIO
+        ratio.log10() * VOLTAGE_TO_DB
     }
 }

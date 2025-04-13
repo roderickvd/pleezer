@@ -10,6 +10,9 @@ and [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/).
 ### Added
 - [benches] Add benchmarks for audio math operations
 
+### Changed
+- [util] Use multiplication instead of division for better performance
+
 ## [0.15.0] - 2025-04-10
 
 ### Added
