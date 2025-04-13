@@ -5,7 +5,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 and [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/).
 
-## [Unreleased]
+## [0.16.0] - 2025-04-13
 
 ### Added
 - [benches] Add benchmarks for audio math operations
@@ -15,7 +15,7 @@ and [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/).
 - [util] Improve normalization algorithm based on benchmark results
 
 ### Fixed
-- [remote] Hook scripts were left in a zombie state
+- [remote] Hook scripts were left in a zombie state (GHSA-472w-7w45-g3w5)
 
 ## [0.15.0] - 2025-04-10
 
