@@ -5,12 +5,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 and [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/).
 
+## [Unreleased]
+
+### Added
+- [benches] Add benchmarks for audio math operations
+
 ## [0.15.0] - 2025-04-10
 
-## Added
+### Added
 - [player] `--max-ram` command-line option to store audio files in RAM instead of disk (#65)
 
-## Changed
+### Changed
 - [player] Preload next track only when nearing the end of the current track
 
 ## [0.14.2] - 2025-04-06

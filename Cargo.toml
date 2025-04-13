@@ -111,6 +111,10 @@ name = "pleezer"
 path = "src/main.rs"
 required-features = ["binary"]
 
+[[bench]]
+name = "audio_math"
+harness = false
+
 [lib]
 doctest = false
 
@@ -123,6 +127,9 @@ optional = true
 git2 = { version = "0.20", default-features = false }
 protobuf-codegen = "3"
 time = { version = "0.3", features = ["formatting"] }
+
+[dev-dependencies]
+criterion = { version = "0.5", features = ["html_reports"] }
 
 [profile.release]
 # Default optimization settings balanced for minimum supported hardware
