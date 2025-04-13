@@ -1,7 +1,5 @@
 use criterion::{BenchmarkId, Criterion, black_box, criterion_group, criterion_main};
-
-const LN_10: f32 = 2.302585092994046;
-const LN_10_INV: f32 = 0.4342944819032518;
+use std::f32::consts::{LN_10, LOG10_E};
 
 fn bench_logs(c: &mut Criterion) {
     let mut group = c.benchmark_group("Logarithm");
@@ -13,7 +11,7 @@ fn bench_logs(c: &mut Criterion) {
             b.iter(|| black_box(*i).log(10.0))
         });
         group.bench_with_input(BenchmarkId::new("ln_convert", ratio), ratio, |b, i| {
-            b.iter(|| black_box(*i).ln() * LN_10_INV)
+            b.iter(|| black_box(*i).ln() * LOG10_E)
         });
     }
     group.finish();
