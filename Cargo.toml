@@ -133,6 +133,8 @@ time = { version = "0.3", features = ["formatting"] }
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports"] }
+fast-math = "0.1"
+fastapprox = "0.3"
 
 [profile.release]
 # Default optimization settings balanced for minimum supported hardware
