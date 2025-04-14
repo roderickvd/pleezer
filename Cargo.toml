@@ -59,6 +59,7 @@ env_logger = { version = "0.11", default-features = false, features = [
     "humantime",
 ] }
 exponential-backoff = "2.0"
+fastapprox = "0.3"
 fastrand = "2.3"
 flate2 = "1.1"
 futures-util = { version = "0.3", default-features = false }
@@ -134,7 +135,6 @@ time = { version = "0.3", features = ["formatting"] }
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports"] }
 fast-math = "0.1"
-fastapprox = "0.3"
 
 [profile.release]
 # Default optimization settings balanced for minimum supported hardware

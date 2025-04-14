@@ -182,6 +182,8 @@ struct NormalizeBase {
     threshold: f32,
     /// Width of the soft-knee region (dB)
     knee_width: f32,
+    /// Inverse of 8 times the knee width (precomputed for efficiency)
+    inv_knee_8: f32,
     /// Attack time constant (ms)
     attack: f32,
     /// Release time constant (ms)
@@ -246,16 +248,17 @@ pub struct NormalizeMulti<I> {
 ///
 /// Amount of gain reduction to apply in dB
 #[inline]
-fn process_sample(sample: Sample, threshold: f32, knee_width: f32) -> f32 {
+fn process_sample(sample: Sample, threshold: f32, knee_width: f32, inv_knee_8: f32) -> f32 {
     // Add slight DC offset. Some samples are silence, which is -inf dB and gets the limiter stuck.
     // Adding a small positive offset prevents this.
-    let sample_f32 = sample + f32::MIN_POSITIVE;
-    let bias_db = util::ratio_to_db(sample_f32.abs()) - threshold;
+    let bias_db = util::ratio_to_db(sample.abs() + f32::MIN_POSITIVE) - threshold;
     let knee_boundary_db = bias_db * 2.0;
     if knee_boundary_db < -knee_width {
         ZERO_DB
     } else if knee_boundary_db.abs() <= knee_width {
-        (knee_boundary_db + knee_width).powi(2) / (8.0 * knee_width)
+        // Faster than powi(2)
+        let x = knee_boundary_db + knee_width;
+        x * x * inv_knee_8
     } else {
         bias_db
     }
@@ -263,10 +266,12 @@ fn process_sample(sample: Sample, threshold: f32, knee_width: f32) -> f32 {
 
 impl NormalizeBase {
     fn new(ratio: f32, threshold: f32, knee_width: f32, attack: f32, release: f32) -> Self {
+        let inv_knee_8 = 1.0 / (8.0 * knee_width);
         Self {
             ratio,
             threshold,
             knee_width,
+            inv_knee_8,
             attack,
             release,
         }
@@ -290,7 +295,7 @@ impl NormalizeBase {
 
         // step 1-4: half-wave rectification and conversion into dB, and gain computer with soft
         // knee and subtractor
-        let limiter_db = process_sample(sample, self.threshold, self.knee_width);
+        let limiter_db = process_sample(sample, self.threshold, self.knee_width, self.inv_knee_8);
 
         // step 5: smooth, decoupled peak detector
         *integrator = f32::max(
