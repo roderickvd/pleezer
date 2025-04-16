@@ -164,7 +164,7 @@ struct Args {
         value_parser = clap::value_parser!(u8).range(1..=24),
         env = "PLEEZER_DITHER_BITS"
     )]
-    dither_bits: Option<usize>,
+    dither_bits: Option<u8>,
 
     /// Maximum RAM (in MB) to use for storing audio files in memory
     ///
@@ -480,7 +480,7 @@ async fn run(args: Args) -> Result<ShutdownSignal> {
             interruptions: !args.no_interruptions,
 
             normalization: args.normalize_volume,
-            dither_bits: args.dither_bits,
+            dither_bits: args.dither_bits.map(Into::into),
             initial_volume: args
                 .initial_volume
                 .map(|volume| Percentage::from_percent(volume as f32)),
