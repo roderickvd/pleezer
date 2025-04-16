@@ -154,6 +154,18 @@ struct Args {
     )]
     initial_volume: Option<u8>,
 
+    /// Set dither bit depth based on DAC linearity
+    ///
+    /// For multibit DACs, set this to the effective number of bits (ENOB).
+    /// Not recommended for sigma-delta DACs.
+    #[arg(
+        long,
+        value_name = "BITS",
+        value_parser = clap::value_parser!(u8).range(1..=24),
+        env = "PLEEZER_DITHER_BITS"
+    )]
+    dither_bits: Option<usize>,
+
     /// Maximum RAM (in MB) to use for storing audio files in memory
     ///
     /// If not specified or if a track exceeds this limit, temporary files will be used.
@@ -466,7 +478,9 @@ async fn run(args: Args) -> Result<ShutdownSignal> {
                 .unwrap_or_else(|| app_name.clone()),
 
             interruptions: !args.no_interruptions,
+
             normalization: args.normalize_volume,
+            dither_bits: args.dither_bits,
             initial_volume: args
                 .initial_volume
                 .map(|volume| Percentage::from_percent(volume as f32)),

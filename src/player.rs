@@ -307,6 +307,9 @@ impl Player {
         #[expect(clippy::cast_possible_truncation)]
         let gain_target_db = gateway::user_data::Gain::default().target as i8;
 
+        let volume = Self::DEFAULT_VOLUME;
+        let volume_control = Arc::new(Volume::new(volume, config.dither_bits));
+
         Ok(Self {
             queue: Vec::new(),
             skip_tracks: HashSet::new(),
@@ -318,8 +321,8 @@ impl Player {
             repeat_mode: RepeatMode::default(),
             normalization: config.normalization,
             gain_target_db,
-            volume: Self::DEFAULT_VOLUME,
-            volume_control: Arc::new(Volume::new(Self::DEFAULT_VOLUME, Some(16))),
+            volume,
+            volume_control,
             event_tx: None,
             playing_since: Duration::ZERO,
             deferred_seek: None,

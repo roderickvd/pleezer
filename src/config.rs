@@ -139,6 +139,9 @@ pub struct Config {
     /// None means no volume override.
     pub initial_volume: Option<Percentage>,
 
+    /// Dither bit depth based on DAC linearity (ENOB)
+    pub dither_bits: Option<usize>,
+
     /// Maximum amount of RAM in bytes that can be used for storing audio files.
     /// `None` means use temporary files instead of RAM.
     pub max_ram: Option<u64>,
