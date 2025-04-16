@@ -2022,10 +2022,7 @@ impl Client {
                 }
             }
 
-            if let Err(e) = self.player.set_volume(volume) {
-                error!("error setting volume: {e}");
-                result = Err(e);
-            }
+            self.player.set_volume(volume);
         }
 
         if let Some(should_play) = should_play {
@@ -2035,10 +2032,7 @@ impl Client {
                 match self.player.start() {
                     Ok(()) => {
                         if let InitialVolume::Active(initial_volume) = self.initial_volume {
-                            if let Err(e) = self.player.set_volume(initial_volume) {
-                                error!("error setting initial volume: {e}");
-                                result = Err(e);
-                            }
+                            self.player.set_volume(initial_volume);
                         }
                     }
                     Err(e) => {

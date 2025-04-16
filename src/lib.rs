@@ -103,6 +103,7 @@ pub mod audio_file;
 pub mod config;
 pub mod decoder;
 pub mod decrypt;
+pub mod dither;
 pub mod error;
 pub mod events;
 pub mod gateway;
@@ -117,5 +118,6 @@ pub mod tokens;
 pub mod track;
 pub mod util;
 pub mod uuid;
+pub mod volume;
 
 pub use uuid::Uuid;
