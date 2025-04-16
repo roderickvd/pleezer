@@ -56,8 +56,6 @@ where
     fn next(&mut self) -> Option<Self::Item> {
         self.input.next().map(|sample| {
             let (volume, scale) = self.volume.get();
-            let attenuated = sample * volume;
-
             let dither = if let Some(scale) = scale {
                 // Scale the noise to the range -1.0..1.0
                 let new_noise = self.rng.f32() * 2.0 - 1.0;
@@ -69,7 +67,7 @@ where
                 0.0
             };
 
-            attenuated + dither
+            (sample + dither) * volume
         })
     }
 
