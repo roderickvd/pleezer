@@ -53,6 +53,8 @@ fn calculate_scale(dither_bits: usize, volume: f32) -> f32 {
         dither_bits.to_f32_lossy() + volume.log2(),
     );
 
+    trace!("dither bits of interest: {bits_of_interest:.1}");
+
     // 2 LSB of dither, scaling a number of unsigned bits to -1.0..1.0
     1.0 / f32::powf(2.0, bits_of_interest)
 }

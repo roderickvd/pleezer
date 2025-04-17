@@ -157,7 +157,7 @@ struct Args {
     /// Set dither bit depth based on DAC linearity
     ///
     /// For multibit DACs, set this to the effective number of bits (ENOB).
-    /// Not recommended for sigma-delta DACs.
+    /// Not necessary for sigma-delta DACs.
     #[arg(
         long,
         value_name = "BITS",
