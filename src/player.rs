@@ -826,7 +826,7 @@ impl Player {
                 }
             }
 
-            let rx = if difference == 0.0 {
+            let rx = if 2.0 * difference.abs() <= f32::EPSILON * difference.abs() {
                 // No normalization needed, just append the decoder.
                 sources.append_with_signal(crate::dither::dithered_volume(
                     decoder,
@@ -834,23 +834,38 @@ impl Player {
                 ))
             } else {
                 let ratio = util::db_to_ratio(difference);
-                debug!(
-                    "normalizing {} {track} by {difference:.1} dB ({})",
-                    track.typ(),
-                    Percentage::from_ratio(ratio)
-                );
-                let normalized = normalize::normalize(
-                    decoder,
-                    ratio,
-                    Self::NORMALIZE_THRESHOLD_DB,
-                    Self::NORMALIZE_KNEE_WIDTH_DB,
-                    Self::NORMALIZE_ATTACK_TIME,
-                    Self::NORMALIZE_RELEASE_TIME,
-                );
-                sources.append_with_signal(crate::dither::dithered_volume(
-                    normalized,
-                    self.volume_control.clone(),
-                ))
+                if difference < 1.0 {
+                    debug!(
+                        "normalizing {} {track} by {difference:.1} dB ({}) by attenuation",
+                        track.typ(),
+                        Percentage::from_ratio(ratio)
+                    );
+
+                    let attenuated = decoder.amplify(ratio);
+                    sources.append_with_signal(crate::dither::dithered_volume(
+                        attenuated,
+                        self.volume_control.clone(),
+                    ))
+                } else {
+                    debug!(
+                        "normalizing {} {track} by {difference:.1} dB ({}) with dynamic limiting",
+                        track.typ(),
+                        Percentage::from_ratio(ratio)
+                    );
+
+                    let normalized = normalize::normalize(
+                        decoder,
+                        ratio,
+                        Self::NORMALIZE_THRESHOLD_DB,
+                        Self::NORMALIZE_KNEE_WIDTH_DB,
+                        Self::NORMALIZE_ATTACK_TIME,
+                        Self::NORMALIZE_RELEASE_TIME,
+                    );
+                    sources.append_with_signal(crate::dither::dithered_volume(
+                        normalized,
+                        self.volume_control.clone(),
+                    ))
+                }
             };
 
             let sample_rate = track.sample_rate.map_or("unknown".to_string(), |rate| {
