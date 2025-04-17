@@ -1,6 +1,6 @@
 use std::sync::atomic::{AtomicU32, Ordering};
 
-use crate::{protocol::connect::Percentage, util::ToF32};
+use crate::{protocol::connect::Percentage, track::DEFAULT_BITS_PER_SAMPLE, util::ToF32};
 
 #[derive(Debug)]
 pub struct Volume {
@@ -10,28 +10,19 @@ pub struct Volume {
 
 #[derive(Debug)]
 struct Dither {
-    bits: usize,
+    dither_bits: usize,
     scale: AtomicU32,
-}
-
-#[expect(clippy::cast_possible_truncation)]
-fn calculate_scale(bits: usize, volume: f32) -> f32 {
-    // Scale to the magnitude of the volume
-    let bits = bits.saturating_add_signed(volume.log2().floor() as isize);
-
-    // 2 LSB of dither, scaling a number of unsigned bits to -1.0..1.0
-    1.0 / (1_usize << bits.saturating_sub(1)).to_f32_lossy()
 }
 
 impl Volume {
     #[must_use]
-    pub fn new(volume: Percentage, bits: Option<usize>) -> Self {
+    pub fn new(volume: Percentage, dither_bits: Option<usize>) -> Self {
         let volume = volume.as_ratio();
         Self {
             volume: AtomicU32::new(volume.to_bits()),
-            dither: bits.map(|bits| Dither {
-                bits,
-                scale: AtomicU32::new(calculate_scale(bits, volume).to_bits()),
+            dither: dither_bits.map(|dither_bits| Dither {
+                dither_bits,
+                scale: AtomicU32::new(calculate_scale(dither_bits, volume).to_bits()),
             }),
         }
     }
@@ -48,8 +39,20 @@ impl Volume {
     pub fn set(&self, volume: f32) {
         self.volume.store(volume.to_bits(), Ordering::Relaxed);
         if let Some(dither) = self.dither.as_ref() {
-            let scale = calculate_scale(dither.bits, volume);
+            let scale = calculate_scale(dither.dither_bits, volume);
             dither.scale.store(scale.to_bits(), Ordering::Relaxed);
         }
     }
+}
+
+#[must_use]
+fn calculate_scale(dither_bits: usize, volume: f32) -> f32 {
+    // Scale to the magnitude of the volume
+    let bits_of_interest = f32::min(
+        DEFAULT_BITS_PER_SAMPLE.to_f32_lossy(),
+        dither_bits.to_f32_lossy() + volume.log2(),
+    );
+
+    // 2 LSB of dither, scaling a number of unsigned bits to -1.0..1.0
+    1.0 / f32::powf(2.0, bits_of_interest)
 }

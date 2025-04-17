@@ -95,6 +95,7 @@ use std::{
     time::{Duration, SystemTime},
 };
 
+use rodio::SampleRate;
 use stream_download::{
     self, StreamDownload, StreamHandle, StreamPhase, StreamState, http::HttpStream,
     source::SourceStream, storage::StorageProvider,
@@ -117,7 +118,7 @@ use crate::{
 };
 
 /// Default audio sample rate in Hz.
-pub const DEFAULT_SAMPLE_RATE: u32 = 44_100;
+pub const DEFAULT_SAMPLE_RATE: SampleRate = 44_100;
 
 /// Default number of bits per sample.
 pub const DEFAULT_BITS_PER_SAMPLE: u32 = 16;
@@ -324,7 +325,7 @@ pub struct Track {
 
     /// Sample rate of the audio track.
     /// Set by player after decoder initialization.
-    pub sample_rate: Option<u32>,
+    pub sample_rate: Option<SampleRate>,
 
     /// Number of bits per sample in the track.
     /// Set by player after decoder initialization.
