@@ -161,7 +161,7 @@ struct Args {
     #[arg(
         long,
         value_name = "BITS",
-        value_parser = clap::value_parser!(u8).range(1..=24),
+        value_parser = clap::value_parser!(u8).range(1..=32),
         env = "PLEEZER_DITHER_BITS"
     )]
     dither_bits: Option<u8>,
