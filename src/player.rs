@@ -81,7 +81,7 @@ use crate::{
         },
         gateway::{self, MediaUrl},
     },
-    track::{Track, TrackId},
+    track::{DEFAULT_SAMPLE_RATE, Track, TrackId},
     util::{self, ToF32, UNITY_GAIN},
     volume::Volume,
 };
@@ -490,6 +490,7 @@ impl Player {
         let stream_handle = rodio::OutputStreamBuilder::default()
             .with_device(device)
             .with_supported_config(&device_config)
+            .with_buffer_size(cpal::BufferSize::Fixed(DEFAULT_SAMPLE_RATE / 10)) // 100 ms
             .open_stream()?;
         let sink = rodio::Sink::connect_new(stream_handle.mixer());
 
