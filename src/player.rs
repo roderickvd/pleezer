@@ -474,14 +474,21 @@ impl Player {
         let config = match rate {
             Some(rate) => find_config(Some(rate))?,
             None => {
-                // Try standard rates first, then fall back to default
-                Self::SAMPLE_RATES
-                    .iter()
-                    .find_map(|&rate| find_config(Some(rate)).ok())
-                    .or_else(|| find_config(None).ok())
-                    .ok_or_else(|| {
-                        Error::unavailable("no supported audio configuration found".to_string())
+                if format.is_some() {
+                    // If format specified but no rate, try standard rates with that format
+                    Self::SAMPLE_RATES
+                        .iter()
+                        .find_map(|&rate| find_config(Some(rate)).ok())
+                        .or_else(|| find_config(None).ok())
+                        .ok_or_else(|| {
+                            Error::unavailable("no supported audio configuration found".to_string())
+                        })?
+                } else {
+                    // If neither rate nor format specified, use device default
+                    device.default_output_config().map_err(|e| {
+                        Error::unavailable(format!("default output configuration unavailable: {e}"))
                     })?
+                }
             }
         };
 
