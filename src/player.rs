@@ -360,6 +360,7 @@ impl Player {
     /// * Sample rate is invalid
     /// * Sample format is not supported
     /// * Device cannot be acquired (e.g., in use by another application)
+    #[expect(clippy::too_many_lines)]
     fn get_device(device: &str) -> Result<(rodio::Device, rodio::SupportedStreamConfig)> {
         // The device string has the following format:
         // "[<host>][|<device>][|<sample rate>][|<sample format>]" (case-insensitive)
@@ -407,42 +408,79 @@ impl Player {
             }
         };
 
-        let config = match components.next() {
-            Some("") | None => device.default_output_config().map_err(|e| {
-                Error::unavailable(format!("default output configuration unavailable: {e}"))
-            })?,
-            Some(rate) => {
-                let rate = rate
-                    .parse()
-                    .map_err(|_| Error::invalid_argument(format!("invalid sample rate {rate}")))?;
-                let rate = cpal::SampleRate(rate);
+        let rate = match components.next() {
+            Some("") | None => None,
+            Some(rate) => Some(
+                rate.parse()
+                    .map_err(|_| Error::invalid_argument(format!("invalid sample rate {rate}")))?,
+            ),
+        };
 
-                let format = match components.next() {
-                    Some("") | None => None,
-                    other => other,
-                };
+        // replace input like `S32` with `i32`
+        let format = match components
+            .next()
+            .map(|fmt| fmt.to_lowercase().replace('s', "i"))
+        {
+            Some(s) if s.is_empty() => None,
+            other => other,
+        };
 
+        let find_config = |rate: Option<u32>| -> Result<rodio::SupportedStreamConfig> {
+            if let Some(format) = &format {
+                // When format is specified, it must be supported
                 device
                     .supported_output_configs()?
                     .find_map(|config| {
-                        if format.is_none_or(|format| {
-                            config
-                                .sample_format()
-                                .to_string()
-                                .eq_ignore_ascii_case(&format.to_lowercase().replace('s', "i"))
-                        }) {
-                            config.try_with_sample_rate(rate)
+                        if config
+                            .sample_format()
+                            .to_string()
+                            .eq_ignore_ascii_case(format)
+                        {
+                            match rate {
+                                Some(rate) => config.try_with_sample_rate(cpal::SampleRate(rate)),
+                                None => Some(config.with_max_sample_rate()),
+                            }
                         } else {
                             None
                         }
                     })
                     .ok_or_else(|| {
                         Error::unavailable(format!(
-                            "audio output device {} does not support sample rate {} with {} sample format",
+                            "audio output device {} does not support {} sample format",
                             device.name().as_deref().unwrap_or("UNKNOWN"),
-                            rate.0,
-                            format.unwrap_or("default")
+                            format
                         ))
+                    })
+            } else {
+                // When no format specified, use any supported format
+                match rate {
+                    Some(rate) => device
+                        .supported_output_configs()?
+                        .find_map(|config| config.try_with_sample_rate(cpal::SampleRate(rate)))
+                        .ok_or_else(|| {
+                            Error::unavailable(format!(
+                                "audio output device {} does not support {} Hz sample rate",
+                                device.name().as_deref().unwrap_or("UNKNOWN"),
+                                rate
+                            ))
+                        }),
+                    None => device.default_output_config().map_err(|e| {
+                        Error::unavailable(format!("default output configuration unavailable: {e}"))
+                    }),
+                }
+            }
+        };
+
+        let config = match rate {
+            Some(rate) => find_config(Some(rate))?,
+            None => {
+                // Try standard rates first, then fall back to default
+                Self::SAMPLE_RATES
+                    .iter()
+                    .find_map(|&rate| find_config(Some(rate)).ok())
+                    .or_else(|| find_config(None).ok())
+                    .ok_or_else(|| {
+                        Error::unavailable("no supported audio configuration found".to_string())
                     })?
             }
         };
