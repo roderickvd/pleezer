@@ -458,10 +458,12 @@ impl Player {
             "audio output configuration: {sample_rate:.1} kHz in {}",
             config.sample_format()
         );
-        trace!("audio buffer size: {:#?}", config.buffer_size());
 
         Ok((device, config))
     }
+
+    const BUFFER_SIZE_MIN: Duration = Duration::from_millis(100);
+    const BUFFER_SIZE_MAX: Duration = Duration::from_millis(500);
 
     /// Opens and configures the audio output device for playback if not already open.
     ///
@@ -487,11 +489,38 @@ impl Player {
         debug!("opening output device");
 
         let (device, device_config) = Self::get_device(&self.device)?;
-        let stream_handle = rodio::OutputStreamBuilder::default()
-            .with_device(device)
-            .with_supported_config(&device_config)
-            .with_buffer_size(cpal::BufferSize::Fixed(DEFAULT_SAMPLE_RATE / 10)) // 100 ms
-            .open_stream()?;
+        let stream_handle = {
+            let mut duration = Self::BUFFER_SIZE_MIN;
+            loop {
+                // Calculate buffer size in samples and ensure it's divisible by 4
+                // This ensures alignment with Alsa's period size
+                let size = (DEFAULT_SAMPLE_RATE / 1_000) * u32::try_from(duration.as_millis())?;
+                if let Ok(stream_handle) = rodio::OutputStreamBuilder::default()
+                    .with_device(device.clone())
+                    .with_supported_config(&device_config)
+                    .with_buffer_size(cpal::BufferSize::Fixed(size))
+                    .open_stream()
+                {
+                    debug!(
+                        "audio buffer size: {:?}",
+                        Duration::from_secs((size / DEFAULT_SAMPLE_RATE).into())
+                    );
+                    break stream_handle;
+                }
+
+                if duration < Self::BUFFER_SIZE_MAX {
+                    duration = duration.saturating_add(Self::BUFFER_SIZE_MIN);
+                } else {
+                    let stream_handle = rodio::OutputStreamBuilder::default()
+                        .with_device(device)
+                        .with_supported_config(&device_config)
+                        .open_stream()?;
+                    warn!("audio buffer size: default",);
+                    break stream_handle;
+                }
+            }
+        };
+
         let sink = rodio::Sink::connect_new(stream_handle.mixer());
 
         // Set the volume to the last known value. Do not use `self.set_volume` because
