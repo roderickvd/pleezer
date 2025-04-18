@@ -137,7 +137,7 @@ use uuid::Uuid;
 
 use crate::{
     config::{Config, Credentials},
-    error::{Error, Result},
+    error::{Error, ErrorKind, Result},
     events::Event,
     gateway::Gateway,
     player::Player,
@@ -1834,17 +1834,24 @@ impl Client {
 
             // Attempt to set the player state, including reordering the queue if the shuffle mode
             // has changed. No need to print the error message, as the method will log it.
-            let state_set = self
-                .set_player_state(
-                    queue_id,
-                    item,
-                    progress,
-                    should_play,
-                    set_shuffle,
-                    set_repeat_mode,
-                    set_volume,
-                )
-                .is_ok();
+            let result = self.set_player_state(
+                queue_id,
+                item,
+                progress,
+                should_play,
+                set_shuffle,
+                set_repeat_mode,
+                set_volume,
+            );
+
+            let mut state_set = true;
+            if let Err(e) = result {
+                // When the output device fails to open or is no longer available
+                if e.kind == ErrorKind::Unavailable {
+                    return self.disconnect().await;
+                }
+                state_set = false;
+            }
 
             // Refresh the queue if the shuffle mode has changed.
             if refresh_queue && self.queue.as_ref().map(|queue| queue.shuffled) == set_shuffle {

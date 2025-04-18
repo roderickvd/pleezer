@@ -429,7 +429,7 @@ impl Player {
                             config
                                 .sample_format()
                                 .to_string()
-                                .eq_ignore_ascii_case(format)
+                                .eq_ignore_ascii_case(&format.to_lowercase().replace('s', "i"))
                         }) {
                             config.try_with_sample_rate(rate)
                         } else {
@@ -505,7 +505,7 @@ impl Player {
                 {
                     debug!(
                         "audio buffer size: {:?}",
-                        Duration::from_secs((size / DEFAULT_SAMPLE_RATE).into())
+                        Duration::from_millis((size * 1_000 / DEFAULT_SAMPLE_RATE).into())
                     );
                     break stream_handle;
                 }
