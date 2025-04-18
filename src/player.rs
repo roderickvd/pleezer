@@ -71,6 +71,7 @@ use crate::{
     config::Config,
     decoder::Decoder,
     decrypt::{self},
+    dither,
     error::{Error, ErrorKind, Result},
     events::Event,
     http, normalize,
@@ -181,9 +182,13 @@ pub struct Player {
     /// The actual output volume uses logarithmic scaling for better perceived control.
     volume: Percentage,
 
-    /// Atomic volume control shared across all `Volume` instances.
-    /// Ensures that all instances share the same volume control and memory is properly managed.
-    volume_control: Arc<Volume>,
+    /// Dithered volume control shared across all sources.
+    ///
+    /// Provides volume adjustment with dithering for improved audio quality.
+    dithered_volume: Arc<Volume>,
+
+    /// Bit depth for dithering.
+    dither_bits: Option<f32>,
 
     /// Channel for sending playback events.
     ///
@@ -247,11 +252,6 @@ pub struct Player {
 }
 
 impl Player {
-    /// Default volume level.
-    ///
-    /// Constant value of 100% (1.0) used as initial volume setting.
-    const DEFAULT_VOLUME: Percentage = Percentage::from_ratio(UNITY_GAIN);
-
     /// Logarithmic volume scale factor for a dynamic range of 60 dB.
     ///
     /// Equal to 10^(60/20) = 1000.0
@@ -307,8 +307,8 @@ impl Player {
         #[expect(clippy::cast_possible_truncation)]
         let gain_target_db = gateway::user_data::Gain::default().target as i8;
 
-        let volume = Self::DEFAULT_VOLUME;
-        let volume_control = Arc::new(Volume::new(volume, config.dither_bits));
+        let volume = Volume::DEFAULT_VOLUME;
+        let dithered_volume = Arc::new(Volume::default());
 
         Ok(Self {
             queue: Vec::new(),
@@ -322,7 +322,8 @@ impl Player {
             normalization: config.normalization,
             gain_target_db,
             volume,
-            volume_control,
+            dithered_volume,
+            dither_bits: config.dither_bits,
             event_tx: None,
             playing_since: Duration::ZERO,
             deferred_seek: None,
@@ -481,6 +482,7 @@ impl Player {
     /// * Device cannot be opened
     /// * Output stream creation fails
     /// * Sink creation fails
+    #[expect(clippy::enum_glob_use)]
     pub fn start(&mut self) -> Result<()> {
         if self.is_started() {
             return Ok(());
@@ -523,10 +525,32 @@ impl Player {
 
         let sink = rodio::Sink::connect_new(stream_handle.mixer());
 
+        // Set a default dithering level
+        let bits = self.dither_bits.or_else(|| {
+            use cpal::SampleFormat::*;
+            let bits = match device_config.sample_format() {
+                // Very low fidelity, e.g., legacy or telephony
+                I8 | U8 => 7.0,
+                // Most DACs handling 16-bit do not achieve a true 16-bit SINAD
+                I16 | U16 => 15.5,
+                // Good delta-sigma DACs max out around 20–21 bits; 19.5 is safe
+                I32 | U32 => 19.5,
+                // No DAC supports more, this is purely for internal formats
+                I64 | U64 => 24.0,
+                // Floating point usually gets quantized later - don't dither here
+                _ => {
+                    debug!("dithering: disabled");
+                    return None;
+                }
+            };
+            debug!("dithering: {bits} effective number of bits");
+            Some(bits)
+        });
+
         // Set the volume to the last known value. Do not use `self.set_volume` because
         // it will short-circuit when trying to set the volume to what `self.volume` already is.
         let log_volume = Self::log_volume(self.volume.as_ratio());
-        self.volume_control.set(log_volume);
+        self.dithered_volume = Arc::new(Volume::new(log_volume, bits));
 
         // The output source will output silence when the queue is empty.
         // That will cause the sink to report as "playing", so we need to pause it.
@@ -857,9 +881,9 @@ impl Player {
 
             let rx = if 2.0 * difference.abs() <= f32::EPSILON * difference.abs() {
                 // No normalization needed, just append the decoder.
-                sources.append_with_signal(crate::dither::dithered_volume(
+                sources.append_with_signal(dither::dithered_volume(
                     decoder,
-                    self.volume_control.clone(),
+                    self.dithered_volume.clone(),
                 ))
             } else {
                 let ratio = util::db_to_ratio(difference);
@@ -871,9 +895,9 @@ impl Player {
                     );
 
                     let attenuated = decoder.amplify(ratio);
-                    sources.append_with_signal(crate::dither::dithered_volume(
+                    sources.append_with_signal(dither::dithered_volume(
                         attenuated,
-                        self.volume_control.clone(),
+                        self.dithered_volume.clone(),
                     ))
                 } else {
                     debug!(
@@ -890,9 +914,9 @@ impl Player {
                         Self::NORMALIZE_ATTACK_TIME,
                         Self::NORMALIZE_RELEASE_TIME,
                     );
-                    sources.append_with_signal(crate::dither::dithered_volume(
+                    sources.append_with_signal(dither::dithered_volume(
                         normalized,
-                        self.volume_control.clone(),
+                        self.dithered_volume.clone(),
                     ))
                 }
             };
@@ -1359,7 +1383,7 @@ impl Player {
         }
 
         // Restore the original volume, if any.
-        self.volume_control.set(original_volume);
+        self.dithered_volume.set_volume(original_volume);
 
         // Resetting the sink drops any downloads of the current and next tracks.
         // We need to reset the download state of those tracks.
@@ -1533,7 +1557,7 @@ impl Player {
     /// Uses thread sleep for timing rather than async to ensure precise volume
     /// transitions. The short sleep duration (25ms total) makes this acceptable.
     fn ramp_volume(&mut self, target: f32) -> f32 {
-        let (original_volume, _) = self.volume_control.get();
+        let original_volume = self.dithered_volume.volume();
 
         let millis = Self::FADE_DURATION.as_millis();
         let fade_step = (target - original_volume) / millis.to_f32_lossy();
@@ -1545,7 +1569,7 @@ impl Player {
                 original_volume + fade_step * i.to_f32_lossy()
             };
 
-            self.volume_control.set(faded_volume);
+            self.dithered_volume.set_volume(faded_volume);
 
             // This blocks the current thread for 1 ms, but is better than making the
             // function async and waiting for the future to complete.

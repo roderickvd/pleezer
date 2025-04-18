@@ -154,17 +154,17 @@ struct Args {
     )]
     initial_volume: Option<u8>,
 
-    /// Set dither bit depth based on DAC linearity
+    /// Set dither bit depth based on DAC linearity (ENOB)
     ///
-    /// For multibit DACs, set this to the effective number of bits (ENOB).
-    /// Not necessary for sigma-delta DACs.
+    /// Set to effective number of bits from DAC measurements.
+    /// Default: 15.5 bits for 16-bit DAC, 19.5 bits for 32-bit DAC.
     #[arg(
         long,
         value_name = "BITS",
-        value_parser = clap::value_parser!(u8).range(1..=32),
+        value_parser = clap::value_parser!(f32),
         env = "PLEEZER_DITHER_BITS"
     )]
-    dither_bits: Option<u8>,
+    dither_bits: Option<f32>,
 
     /// Maximum RAM (in MB) to use for storing audio files in memory
     ///
@@ -352,6 +352,15 @@ fn parse_secrets(secrets: impl AsRef<Path>) -> Result<toml::Value> {
 ///
 /// Network errors that might be temporary will trigger retry instead.
 async fn run(args: Args) -> Result<ShutdownSignal> {
+    if args
+        .dither_bits
+        .is_some_and(|bits| !(1.0..=24.0).contains(&bits))
+    {
+        return Err(Error::invalid_argument(
+            "dither bits must be between 1.0 and 24.0",
+        ));
+    }
+
     if args.device.as_ref().is_some_and(|device| device == "?") {
         // List available devices and exit.
         let devices = Player::enumerate_devices();
@@ -480,7 +489,7 @@ async fn run(args: Args) -> Result<ShutdownSignal> {
             interruptions: !args.no_interruptions,
 
             normalization: args.normalize_volume,
-            dither_bits: args.dither_bits.map(Into::into),
+            dither_bits: args.dither_bits,
             initial_volume: args
                 .initial_volume
                 .map(|volume| Percentage::from_percent(volume as f32)),

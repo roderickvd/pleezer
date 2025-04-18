@@ -140,7 +140,7 @@ pub struct Config {
     pub initial_volume: Option<Percentage>,
 
     /// Dither bit depth based on DAC linearity (ENOB)
-    pub dither_bits: Option<usize>,
+    pub dither_bits: Option<f32>,
 
     /// Maximum amount of RAM in bytes that can be used for storing audio files.
     /// `None` means use temporary files instead of RAM.
