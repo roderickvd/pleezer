@@ -614,7 +614,10 @@ impl Player {
         // The output source will output silence when the queue is empty.
         // That will cause the sink to report as "playing", so we need to pause it.
         let (sources, output) = rodio::queue::queue(true);
-        sink.append(output);
+        sink.append(dither::dithered_volume(
+            output,
+            self.dithered_volume.clone(),
+        ));
         sink.pause();
 
         self.sink = Some(sink);
@@ -942,10 +945,7 @@ impl Player {
 
             let rx = if 2.0 * difference.abs() <= f32::EPSILON * difference.abs() {
                 // No normalization needed, just append the decoder.
-                sources.append_with_signal(dither::dithered_volume(
-                    decoder,
-                    self.dithered_volume.clone(),
-                ))
+                sources.append_with_signal(decoder)
             } else {
                 let ratio = util::db_to_ratio(difference);
                 if difference < 1.0 {
@@ -956,10 +956,7 @@ impl Player {
                     );
 
                     let attenuated = decoder.amplify(ratio);
-                    sources.append_with_signal(dither::dithered_volume(
-                        attenuated,
-                        self.dithered_volume.clone(),
-                    ))
+                    sources.append_with_signal(attenuated)
                 } else {
                     debug!(
                         "normalizing {} {track} by {difference:.1} dB ({}) with dynamic limiting",
@@ -975,10 +972,7 @@ impl Player {
                         Self::NORMALIZE_ATTACK_TIME,
                         Self::NORMALIZE_RELEASE_TIME,
                     );
-                    sources.append_with_signal(dither::dithered_volume(
-                        normalized,
-                        self.dithered_volume.clone(),
-                    ))
+                    sources.append_with_signal(normalized)
                 }
             };
 
@@ -1432,6 +1426,7 @@ impl Player {
         // Apply a short fade-out to prevent popping.
         let original_volume = self.ramp_volume(0.0);
 
+        let volume_control = self.dithered_volume.clone();
         if let Ok(sink) = self.sink_mut() {
             // Don't *clear* the sink, because that makes Rodio:
             // - drop the entire output queue
@@ -1446,11 +1441,11 @@ impl Player {
 
             // With Rodio having dropped the previous output queue, we need to create a new one.
             let (sources, output) = rodio::queue::queue(true);
-            sink.append(output);
+            sink.append(dither::dithered_volume(output, volume_control));
             self.sources = Some(sources);
         }
 
-        // Restore the original volume, if any.
+        // Restore the original volume.
         self.dithered_volume.set_volume(original_volume);
 
         // Resetting the sink drops any downloads of the current and next tracks.
@@ -1645,7 +1640,9 @@ impl Player {
         }
 
         if let Some(dither_bits) = self.dithered_volume.dither_bits() {
-            debug!("volume control dither: {dither_bits:.1} bits");
+            if target > 0.0 {
+                debug!("volume control dither: {dither_bits:.1} bits");
+            }
         }
 
         original_volume

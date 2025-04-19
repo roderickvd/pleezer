@@ -3,7 +3,7 @@ use std::{sync::Arc, time::Duration};
 use cpal::ChannelCount;
 use rodio::{Source, source::SeekError};
 
-use crate::volume::Volume;
+use crate::{util::UNITY_GAIN, volume::Volume};
 
 pub fn dithered_volume<I>(input: I, volume: Arc<Volume>) -> DitheredVolume<I> {
     DitheredVolume {
@@ -56,18 +56,16 @@ where
     fn next(&mut self) -> Option<Self::Item> {
         self.input.next().map(|sample| {
             let mut volume = self.volume.volume();
-            let dither = if let Some(scale) = self.volume.dither_scale() {
+            let dither = self.volume.dither_scale().map_or(0.0, |scale| {
                 // Prevent clipping at full scale
-                volume = volume.min(1.0 - scale);
+                volume = volume.min(UNITY_GAIN - scale);
                 // Scale the noise to the range -1.0..1.0
                 let new_noise = self.rng.f32() * 2.0 - 1.0;
                 // Generate a high-passed TPDF dither by reusing the noise from the last sample
                 let tpdf = new_noise - self.noise;
                 self.noise = new_noise;
                 tpdf * scale
-            } else {
-                0.0
-            };
+            });
 
             (sample + dither) * volume
         })

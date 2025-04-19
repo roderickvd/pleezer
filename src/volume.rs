@@ -51,11 +51,15 @@ impl Volume {
     }
 
     pub fn set_volume(&self, volume: f32) {
-        self.volume.store(volume.to_bits(), Ordering::Relaxed);
         if let Some(dither) = self.dither.as_ref() {
             let scale = calculate_scale(dither.dac_bits, self.track_bits(), volume);
             dither.scale.store(scale.to_bits(), Ordering::Relaxed);
         }
+
+        // set volume last: in case of low volume before, dithering would be at a fairly
+        // low significant bits, which could lead to audible artifacts if the volume were
+        // raised before (race condition)
+        self.volume.store(volume.to_bits(), Ordering::Relaxed);
     }
 
     #[must_use]
@@ -86,8 +90,13 @@ impl Volume {
 
 #[must_use]
 fn calculate_dither_bits(dac_bits: f32, track_bits: u32, volume: f32) -> f32 {
-    // Scale to the magnitude of the volume, but not exceeding the track bits
-    f32::min(track_bits.to_f32_lossy(), dac_bits + volume.log2())
+    if volume > 0.0 {
+        // Scale to the magnitude of the volume, but not exceeding the track bits
+        f32::min(track_bits.to_f32_lossy(), dac_bits + volume.log2())
+    } else {
+        // Prevent -infinity
+        0.0
+    }
 }
 
 #[must_use]
