@@ -1645,7 +1645,7 @@ impl Player {
         }
 
         if let Some(dither_bits) = self.dithered_volume.dither_bits() {
-            debug!("volume control dither bit depth: {dither_bits}");
+            debug!("volume control dither: {dither_bits:.1} bits");
         }
 
         original_volume
