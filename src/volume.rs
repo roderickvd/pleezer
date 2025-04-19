@@ -1,12 +1,11 @@
 use std::sync::atomic::{AtomicU32, Ordering};
 
 use crate::{
-    protocol::connect::Percentage,
     track::DEFAULT_BITS_PER_SAMPLE,
     util::{ToF32, UNITY_GAIN},
 };
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct Volume {
     volume: AtomicU32,
     dither: Option<Dither>,
@@ -19,11 +18,20 @@ struct Dither {
     scale: AtomicU32,
 }
 
+impl Default for Volume {
+    fn default() -> Self {
+        Self {
+            volume: AtomicU32::new(Self::DEFAULT_VOLUME.to_bits()),
+            dither: None,
+        }
+    }
+}
+
 impl Volume {
     /// Default volume level.
     ///
     /// Constant value of 100% (1.0) used as initial volume setting.
-    pub const DEFAULT_VOLUME: Percentage = Percentage::from_ratio(UNITY_GAIN);
+    pub const DEFAULT_VOLUME: f32 = UNITY_GAIN;
 
     #[must_use]
     pub fn new(volume: f32, dac_bits: Option<f32>) -> Self {

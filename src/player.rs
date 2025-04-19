@@ -265,11 +265,11 @@ impl Player {
     const LOG_VOLUME_GROWTH_RATE: f32 = 6.907_755_4;
 
     /// Duration of the fade to prevent audio popping when clearing the queue
-    /// or changing volume.
+    /// changing volume, or seeking.
     ///
-    /// A short linear ramp (25ms) is applied to avoid abrupt changes and
+    /// A short linear ramp (50ms) is applied to avoid abrupt changes and
     /// sudden audio cutoffs that can cause popping sounds.
-    const FADE_DURATION: Duration = Duration::from_millis(25);
+    const FADE_DURATION: Duration = Duration::from_millis(50);
 
     /// Creates a new player instance.
     ///
@@ -307,8 +307,8 @@ impl Player {
         #[expect(clippy::cast_possible_truncation)]
         let gain_target_db = gateway::user_data::Gain::default().target as i8;
 
-        let volume = Volume::DEFAULT_VOLUME;
         let dithered_volume = Arc::new(Volume::default());
+        let volume = Percentage::from_ratio(dithered_volume.volume());
 
         Ok(Self {
             queue: Vec::new(),
