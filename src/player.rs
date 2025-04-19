@@ -57,7 +57,7 @@
 //! player.stop();
 //! ```
 
-use std::{collections::HashSet, sync::Arc, time::Duration};
+use std::{collections::HashSet, f32, sync::Arc, time::Duration};
 
 use cpal::traits::{DeviceTrait, HostTrait};
 use md5::{Digest, Md5};
@@ -1190,16 +1190,17 @@ impl Player {
         if !self.is_playing() {
             debug!("starting playback");
 
-            // Gradually ramp up to prevent popping
-            let original_volume = self.dithered_volume.set_volume(0.0);
-
+            // We were not playing, so for the volume ramp below to work trick the player into
+            // thinking it's at zero volume without the wait of ramping down.
+            let original_volume = std::mem::replace(&mut self.volume, Percentage::ZERO);
             let pos = {
                 let sink_mut = self.sink_mut()?;
                 sink_mut.play();
                 sink_mut.get_pos()
             };
 
-            self.ramp_volume(original_volume);
+            // Gradually ramp up to prevent popping
+            self.ramp_volume(original_volume.as_ratio());
 
             // Reset the playback start time for live streams.
             if self.track().is_some_and(Track::is_livestream) {
@@ -1452,7 +1453,7 @@ impl Player {
         }
 
         // Restore the original volume.
-        self.dithered_volume.set_volume(original_volume);
+        self.ramp_volume(original_volume);
 
         // Resetting the sink drops any downloads of the current and next tracks.
         // We need to reset the download state of those tracks.
@@ -1566,7 +1567,7 @@ impl Player {
     ///
     /// # Returns
     ///
-    /// Returns the previous volume, wrapped in `Result`.
+    /// Returns the previous volume.
     ///
     /// # Arguments
     ///
@@ -1581,23 +1582,10 @@ impl Player {
 
         info!("setting volume to {target}");
 
-        // Store the unscaled volume setting for playback reporting.
-        self.volume = target;
-
-        // Clamp just in case the volume is set outside the valid range.
-        let volume = target.as_ratio().clamp(0.0, UNITY_GAIN);
-        let log_volume = Self::log_volume(volume);
-        if 2.0 * (volume - log_volume).abs() > f32::EPSILON * (volume.abs() + log_volume.abs()) {
-            debug!(
-                "volume scaled logarithmically to {}",
-                Percentage::from_ratio(log_volume)
-            );
-        }
-
-        // Apply the volume ramp if playback is active. If not, store the volume
-        // setting for when playback starts.
+        // Apply the volume ramp if playback is active. If not, just return the current volume
+        // and store the target volume below for when playback starts.
         if self.is_started() {
-            Percentage::from_ratio(self.ramp_volume(log_volume))
+            Percentage::from_ratio(self.ramp_volume(target.as_ratio()))
         } else {
             current
         }
@@ -1605,9 +1593,9 @@ impl Player {
 
     /// Gradually changes audio volume over a short duration to prevent popping.
     ///
-    /// Applies a linear volume ramp between the current and target volumes over
-    /// `FADE_DURATION` milliseconds. This prevents audio artifacts that can occur
-    /// with sudden volume changes.
+    /// Applies a logarithmic volume ramp  between the current and target volumes over
+    /// `FADE_DURATION` milliseconds. This prevents audio artifacts that can occur with
+    /// sudden volume changes.
     ///
     /// # Arguments
     ///
@@ -1624,29 +1612,42 @@ impl Player {
     /// # Implementation Note
     ///
     /// Uses thread sleep for timing rather than async to ensure precise volume
-    /// transitions. The short sleep duration (25ms total) makes this acceptable.
+    /// transitions. The short sleep duration makes this acceptable.
     fn ramp_volume(&mut self, target: f32) -> f32 {
-        let original_volume = self.dithered_volume.volume();
+        let original_volume = self.volume().as_ratio();
 
-        let millis = Self::FADE_DURATION.as_millis();
-        for i in 1..=millis {
-            let progress = i.to_f32_lossy() / millis.to_f32_lossy();
-            let faded_volume =
-                Self::log_volume(original_volume * (1.0 - progress) + target * progress);
+        // Ramp only if the target is different from the current volume
+        if 2.0 * (original_volume - target).abs()
+            > f32::EPSILON * (original_volume.abs() + target.abs())
+        {
+            let millis = Self::FADE_DURATION.as_millis();
+            for i in 1..=millis {
+                let progress = i.to_f32_lossy() / millis.to_f32_lossy();
+                let faded = original_volume * (1.0 - progress) + target * progress;
+                let log_faded = Self::log_volume(faded);
+                self.dithered_volume.set_volume(log_faded);
 
-            self.dithered_volume.set_volume(faded_volume);
+                if i == millis {
+                    debug!(
+                        "volume scaled logarithmically to {}",
+                        Percentage::from_ratio(log_faded)
+                    );
+                }
 
-            // This blocks the current thread for 1 ms, but is better than making the
-            // function async and waiting for the future to complete.
-            std::thread::sleep(Duration::from_millis(1));
-        }
+                // This blocks the current thread for 1 ms, but is better than making the
+                // function async and waiting for the future to complete.
+                std::thread::sleep(Duration::from_millis(1));
+            }
 
-        if let Some(dither_bits) = self.dithered_volume.dither_bits() {
-            if target > 0.0 {
-                debug!("volume control dither: {dither_bits:.1} bits");
+            if let Some(dither_bits) = self.dithered_volume.dither_bits() {
+                if target > 0.0 {
+                    debug!("volume control dither: {dither_bits:.1} bits");
+                }
             }
         }
 
+        // Store the unscaled volume setting for playback reporting.
+        self.volume = Percentage::from_ratio(target);
         original_volume
     }
 
