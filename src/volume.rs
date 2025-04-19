@@ -75,13 +75,23 @@ impl Volume {
             dither.scale.store(scale.to_bits(), Ordering::Relaxed);
         }
     }
+
+    #[must_use]
+    pub fn dither_bits(&self) -> Option<f32> {
+        self.dither
+            .as_ref()
+            .map(|dither| calculate_dither_bits(dither.dac_bits, self.track_bits(), self.volume()))
+    }
+}
+
+#[must_use]
+fn calculate_dither_bits(dac_bits: f32, track_bits: u32, volume: f32) -> f32 {
+    // Scale to the magnitude of the volume, but not exceeding the track bits
+    f32::min(track_bits.to_f32_lossy(), dac_bits + volume.log2())
 }
 
 #[must_use]
 fn calculate_scale(dac_bits: f32, track_bits: u32, volume: f32) -> f32 {
-    // Scale to the magnitude of the volume, but not exceeding the track bits
-    let bits_of_interest = f32::min(track_bits.to_f32_lossy(), dac_bits + volume.log2());
-
     // 2 LSB of dither, scaling a number of unsigned bits to -1.0..1.0
-    1.0 / f32::powf(2.0, bits_of_interest)
+    1.0 / f32::powf(2.0, calculate_dither_bits(dac_bits, track_bits, volume))
 }

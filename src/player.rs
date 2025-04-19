@@ -82,7 +82,7 @@ use crate::{
         },
         gateway::{self, MediaUrl},
     },
-    track::{DEFAULT_SAMPLE_RATE, Track, TrackId},
+    track::{DEFAULT_BITS_PER_SAMPLE, DEFAULT_SAMPLE_RATE, Track, TrackId},
     util::{self, ToF32, UNITY_GAIN},
     volume::Volume,
 };
@@ -992,11 +992,12 @@ impl Player {
                 .bitrate()
                 .map_or("unknown".to_string(), |kbps| kbps.to_string());
             debug!(
-                "loaded {} {track}; codec: {codec}; sample rate: {sample_rate} kHz; bitrate: {bitrate} kbps; channels: {}",
+                "loaded {} {track}; codec: {codec}; sample rate: {sample_rate} kHz; bitrate: {bitrate} kbps; channels: {}, bit depth: {}",
                 track.typ(),
                 track
                     .channels
-                    .unwrap_or_else(|| track.typ().default_channels())
+                    .unwrap_or_else(|| track.typ().default_channels()),
+                track.bits_per_sample.unwrap_or(DEFAULT_BITS_PER_SAMPLE)
             );
 
             return Ok(Some(rx));
@@ -1641,6 +1642,10 @@ impl Player {
             // This blocks the current thread for 1 ms, but is better than making the
             // function async and waiting for the future to complete.
             std::thread::sleep(Duration::from_millis(1));
+        }
+
+        if let Some(dither_bits) = self.dithered_volume.dither_bits() {
+            debug!("volume control dither bit depth: {dither_bits}");
         }
 
         original_volume
