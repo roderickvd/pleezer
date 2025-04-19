@@ -85,7 +85,6 @@ serde_repr = "0.1"
 serde_with = { version = "3.12", features = ["json"] }
 stream-download = { version = "0.19", features = ["reqwest-rustls"] }
 sysinfo = { version = "0.34", default-features = false, features = ["system"] }
-# TODO: remove when https://github.com/pdeljanov/Symphonia/pull/340 is merged
 symphonia = { version = "0.5", default-features = false, features = [
     "aac",
     "flac",
