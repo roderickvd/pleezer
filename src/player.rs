@@ -562,40 +562,54 @@ impl Player {
                         .with_device(device)
                         .with_supported_config(&device_config)
                         .open_stream()?;
-                    warn!("audio buffer size: default",);
+                    info!("audio buffer size: default");
                     break stream_handle;
                 }
             }
         };
-
         let sink = rodio::Sink::connect_new(stream_handle.mixer());
 
-        // Set a default dithering level
-        let bits = self.dither_bits.or_else(|| {
-            use cpal::SampleFormat::*;
-            let bits = match device_config.sample_format() {
-                // Very low fidelity, e.g., legacy or telephony
-                I8 | U8 => 7.0,
-                // Most DACs handling 16-bit do not achieve a true 16-bit SINAD
-                I16 | U16 => 15.5,
-                // Good delta-sigma DACs max out around 20–21 bits; 19.5 is safe
-                I32 | U32 => 19.5,
-                // No DAC supports more, this is purely for internal formats
-                I64 | U64 => 24.0,
-                // Floating point usually gets quantized later - don't dither here
-                _ => {
-                    debug!("dithering: disabled");
-                    return None;
+        // Determine the dither bit depth
+        let sample_format = device_config.sample_format();
+        let dither_bits = self
+            .dither_bits
+            .map(|dac_bits| {
+                // Limit the dithering level to the sample format's bit depth
+                let format_bits = (sample_format.sample_size() * 8).to_f32_lossy();
+                if dac_bits > format_bits {
+                    warn!("dither bits limited to sample format bit depth");
+                    format_bits
+                } else {
+                    dac_bits
                 }
-            };
+            })
+            .or_else(|| {
+                // Set a default dithering level
+                use cpal::SampleFormat::*;
+                let bits = match device_config.sample_format() {
+                    // Very low fidelity, e.g., legacy or telephony
+                    I8 | U8 => 7.0,
+                    // Most DACs handling 16-bit do not achieve a true 16-bit SINAD
+                    I16 | U16 => 15.5,
+                    // Good delta-sigma DACs max out around 20–21 bits; 19.5 is safe
+                    I32 | U32 => 19.5,
+                    // No DAC supports more, this is purely for internal formats
+                    I64 | U64 => 24.0,
+                    // Floating point usually gets quantized later - don't dither here
+                    _ => return None,
+                };
+                Some(bits)
+            });
+        if let Some(bits) = dither_bits {
             debug!("dithering: {bits} effective number of bits");
-            Some(bits)
-        });
+        } else {
+            debug!("dithering: disabled");
+        }
 
         // Set the volume to the last known value. Do not use `self.set_volume` because
         // it will short-circuit when trying to set the volume to what `self.volume` already is.
         let log_volume = Self::log_volume(self.volume.as_ratio());
-        self.dithered_volume = Arc::new(Volume::new(log_volume, bits));
+        self.dithered_volume = Arc::new(Volume::new(log_volume, dither_bits));
 
         // The output source will output silence when the queue is empty.
         // That will cause the sink to report as "playing", so we need to pause it.

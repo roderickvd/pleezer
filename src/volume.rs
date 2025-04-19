@@ -35,12 +35,14 @@ impl Volume {
         }
     }
 
+    #[must_use]
     pub fn dither_scale(&self) -> Option<f32> {
         self.dither
             .as_ref()
             .map(|dither| f32::from_bits(dither.scale.load(Ordering::Relaxed)))
     }
 
+    #[must_use]
     pub fn volume(&self) -> f32 {
         f32::from_bits(self.volume.load(Ordering::Relaxed))
     }
