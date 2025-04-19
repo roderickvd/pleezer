@@ -14,7 +14,8 @@ pub struct Volume {
 
 #[derive(Debug)]
 struct Dither {
-    dither_bits: f32,
+    dac_bits: f32,
+    track_bits: AtomicU32,
     scale: AtomicU32,
 }
 
@@ -25,12 +26,14 @@ impl Volume {
     pub const DEFAULT_VOLUME: Percentage = Percentage::from_ratio(UNITY_GAIN);
 
     #[must_use]
-    pub fn new(volume: f32, dither_bits: Option<f32>) -> Self {
+    pub fn new(volume: f32, dac_bits: Option<f32>) -> Self {
+        let track_bits = DEFAULT_BITS_PER_SAMPLE;
         Self {
             volume: AtomicU32::new(volume.to_bits()),
-            dither: dither_bits.map(|dither_bits| Dither {
-                dither_bits,
-                scale: AtomicU32::new(calculate_scale(dither_bits, volume).to_bits()),
+            dither: dac_bits.map(|dac_bits| Dither {
+                dac_bits,
+                track_bits: AtomicU32::new(track_bits),
+                scale: AtomicU32::new(calculate_scale(dac_bits, track_bits, volume).to_bits()),
             }),
         }
     }
@@ -50,19 +53,34 @@ impl Volume {
     pub fn set_volume(&self, volume: f32) {
         self.volume.store(volume.to_bits(), Ordering::Relaxed);
         if let Some(dither) = self.dither.as_ref() {
-            let scale = calculate_scale(dither.dither_bits, volume);
+            let scale = calculate_scale(dither.dac_bits, self.track_bits(), volume);
+            dither.scale.store(scale.to_bits(), Ordering::Relaxed);
+        }
+    }
+
+    #[must_use]
+    pub fn track_bits(&self) -> u32 {
+        self.dither
+            .as_ref()
+            .map_or(DEFAULT_BITS_PER_SAMPLE, |dither| {
+                dither.track_bits.load(Ordering::Relaxed)
+            })
+    }
+
+    pub fn set_track_bits(&self, track_bits: Option<u32>) {
+        if let Some(dither) = self.dither.as_ref() {
+            let track_bits = track_bits.unwrap_or(DEFAULT_BITS_PER_SAMPLE);
+            let scale = calculate_scale(dither.dac_bits, track_bits, self.volume());
+            dither.track_bits.store(track_bits, Ordering::Relaxed);
             dither.scale.store(scale.to_bits(), Ordering::Relaxed);
         }
     }
 }
 
 #[must_use]
-fn calculate_scale(dither_bits: f32, volume: f32) -> f32 {
-    // Scale to the magnitude of the volume
-    let bits_of_interest = f32::min(
-        DEFAULT_BITS_PER_SAMPLE.to_f32_lossy(),
-        dither_bits + volume.log2(),
-    );
+fn calculate_scale(dac_bits: f32, track_bits: u32, volume: f32) -> f32 {
+    // Scale to the magnitude of the volume, but not exceeding the track bits
+    let bits_of_interest = f32::min(track_bits.to_f32_lossy(), dac_bits + volume.log2());
 
     // 2 LSB of dither, scaling a number of unsigned bits to -1.0..1.0
     1.0 / f32::powf(2.0, bits_of_interest)

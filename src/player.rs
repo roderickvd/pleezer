@@ -761,6 +761,8 @@ impl Player {
         }
 
         if self.position() != old_position {
+            self.dithered_volume
+                .set_track_bits(self.track().and_then(|track| track.bits_per_sample));
             self.preload_start = self.calc_preload_start(self.track().and_then(Track::duration));
             self.notify(Event::TrackChanged);
         }
@@ -1091,6 +1093,7 @@ impl Player {
                         let track_id = track.id();
                         let track_typ = track.typ();
                         let track_dur = track.duration();
+                        let track_bits = track.bits_per_sample;
                         if self.skip_tracks.contains(&track_id) {
                             self.go_next();
                         } else {
@@ -1098,6 +1101,7 @@ impl Player {
                                 Ok(rx) => {
                                     if let Some(rx) = rx {
                                         self.current_rx = Some(rx);
+                                        self.dithered_volume.set_track_bits(track_bits);
                                         self.preload_start = self.calc_preload_start(track_dur);
                                         self.notify(Event::TrackChanged);
                                         if self.is_playing() {
@@ -1120,6 +1124,10 @@ impl Player {
         }
     }
 
+    /// Calculates the start time for preloading a track.
+    ///
+    /// The start time is calculated based on the current position and the track duration.
+    /// If the track duration is not available, preloads may start immediately.
     fn calc_preload_start(&self, track_duration: Option<Duration>) -> Duration {
         self.get_pos()
             .saturating_add(track_duration.map_or(Duration::ZERO, |duration| {
