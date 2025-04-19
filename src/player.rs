@@ -1189,11 +1189,17 @@ impl Player {
 
         if !self.is_playing() {
             debug!("starting playback");
+
+            // Gradually ramp up to prevent popping
+            let original_volume = self.dithered_volume.set_volume(0.0);
+
             let pos = {
                 let sink_mut = self.sink_mut()?;
                 sink_mut.play();
                 sink_mut.get_pos()
             };
+
+            self.ramp_volume(original_volume);
 
             // Reset the playback start time for live streams.
             if self.track().is_some_and(Track::is_livestream) {
@@ -1750,9 +1756,13 @@ impl Player {
                         track.typ()
                     ))
                 })
-                .and_then(|_| {
-                    self.sink_mut()
-                        .and_then(|sink| sink.try_seek(position).map_err(Into::into))
+                .map(|_| self.ramp_volume(0.0))
+                .and_then(|original_volume| {
+                    let seek_result = self
+                        .sink_mut()
+                        .and_then(|sink| sink.try_seek(position).map_err(Into::into));
+                    self.ramp_volume(original_volume);
+                    seek_result
                 }) {
                 Ok(()) => {
                     // Reset the playing time to zero, as the sink will now reset it also.
