@@ -1623,14 +1623,10 @@ impl Player {
         let original_volume = self.dithered_volume.volume();
 
         let millis = Self::FADE_DURATION.as_millis();
-        let fade_step = (target - original_volume) / millis.to_f32_lossy();
-
         for i in 1..=millis {
-            let faded_volume = if i == millis {
-                target
-            } else {
-                original_volume + fade_step * i.to_f32_lossy()
-            };
+            let progress = i.to_f32_lossy() / millis.to_f32_lossy();
+            let faded_volume =
+                Self::log_volume(original_volume * (1.0 - progress) + target * progress);
 
             self.dithered_volume.set_volume(faded_volume);
 
