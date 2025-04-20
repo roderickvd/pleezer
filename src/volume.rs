@@ -99,13 +99,9 @@ impl Volume {
 
 #[must_use]
 fn calculate_dither_bits(dac_bits: f32, track_bits: u32, volume: f32) -> f32 {
-    if volume > 0.0 {
-        // Scale to the magnitude of the volume, but not exceeding the track bits
-        f32::min(track_bits.to_f32_lossy(), dac_bits + volume.log2())
-    } else {
-        // Prevent -infinity
-        0.0
-    }
+    // Scale to the magnitude of the volume, but not exceeding the track bits
+    // and preventing -infinity
+    f32::min(track_bits.to_f32_lossy(), dac_bits + volume.log2()).max(0.0)
 }
 
 #[must_use]

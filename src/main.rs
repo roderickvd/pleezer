@@ -156,7 +156,7 @@ struct Args {
 
     /// Set dither bit depth based on DAC linearity (ENOB)
     ///
-    /// Set to effective number of bits from DAC measurements.
+    /// Set to effective number of bits from DAC measurements, or 0 to disable dithering.
     /// Default: 15.5 bits for 16-bit DAC, 19.5 bits for 32-bit DAC.
     #[arg(
         long,
@@ -354,12 +354,22 @@ fn parse_secrets(secrets: impl AsRef<Path>) -> Result<toml::Value> {
 async fn run(args: Args) -> Result<ShutdownSignal> {
     if args
         .dither_bits
-        .is_some_and(|bits| !(1.0..=24.0).contains(&bits))
+        .is_some_and(|bits| !(0.0..=24.0).contains(&bits))
     {
         return Err(Error::invalid_argument(
-            "dither bits must be between 1.0 and 24.0",
+            "dither bits must be between 0 and 24",
         ));
     }
+
+    // Value of 0.0 disables dithering.
+    let dither_bits = if args
+        .dither_bits
+        .is_some_and(|bits| 2.0 * bits.abs() > f32::EPSILON * bits.abs())
+    {
+        args.dither_bits
+    } else {
+        None
+    };
 
     if args.device.as_ref().is_some_and(|device| device == "?") {
         // List available devices and exit.
@@ -489,7 +499,7 @@ async fn run(args: Args) -> Result<ShutdownSignal> {
             interruptions: !args.no_interruptions,
 
             normalization: args.normalize_volume,
-            dither_bits: args.dither_bits,
+            dither_bits,
             initial_volume: args
                 .initial_volume
                 .map(|volume| Percentage::from_percent(volume as f32)),
