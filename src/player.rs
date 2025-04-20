@@ -1189,10 +1189,8 @@ impl Player {
 
         if !self.is_playing() {
             debug!("starting playback");
+            let original_volume = self.ramp_volume(0.0);
 
-            // We were not playing, so for the volume ramp below to work trick the player into
-            // thinking it's at zero volume without the wait of ramping down.
-            let original_volume = std::mem::replace(&mut self.volume, Percentage::ZERO);
             let pos = {
                 let sink_mut = self.sink_mut()?;
                 sink_mut.play();
@@ -1200,7 +1198,7 @@ impl Player {
             };
 
             // Gradually ramp up to prevent popping
-            self.ramp_volume(original_volume.as_ratio());
+            self.ramp_volume(original_volume);
 
             // Reset the playback start time for live streams.
             if self.track().is_some_and(Track::is_livestream) {
@@ -1244,9 +1242,14 @@ impl Player {
     /// Returns error if audio device is not open.
     pub fn pause(&mut self) {
         debug!("pausing playback");
+        let original_volume = self.ramp_volume(0.0);
+
         // Don't care if the sink is already dropped: we're already "paused".
         let _ = self.sink_mut().map(|sink| sink.pause());
         self.notify(Event::Pause);
+
+        // Reset the volume to its original value.
+        self.ramp_volume(original_volume);
     }
 
     /// Returns whether playback is active.
@@ -1585,7 +1588,15 @@ impl Player {
         // Apply the volume ramp if playback is active. If not, just return the current volume
         // and store the target volume below for when playback starts.
         if self.is_started() {
-            Percentage::from_ratio(self.ramp_volume(target.as_ratio()))
+            let target = target.as_ratio();
+            let new = Percentage::from_ratio(self.ramp_volume(target));
+            if target > 0.0 && target < 1.0 {
+                debug!(
+                    "volume scaled logarithmically to {}",
+                    Self::log_volume(target)
+                );
+            }
+            new
         } else {
             current
         }
@@ -1620,24 +1631,28 @@ impl Player {
         if 2.0 * (original_volume - target).abs()
             > f32::EPSILON * (original_volume.abs() + target.abs())
         {
-            let millis = Self::FADE_DURATION.as_millis();
-            for i in 1..=millis {
-                let progress = i.to_f32_lossy() / millis.to_f32_lossy();
-                let faded = original_volume * (1.0 - progress) + target * progress;
-                let log_faded = Self::log_volume(faded);
-                self.dithered_volume.set_volume(log_faded);
+            // Store the unscaled volume setting for playback reporting.
+            self.volume = Percentage::from_ratio(target);
 
-                if i == millis {
-                    debug!(
-                        "volume scaled logarithmically to {}",
-                        Percentage::from_ratio(log_faded)
-                    );
+            // Only ramp if there is a current audio stream
+            if self.current_rx.is_some() {
+                debug!("******** ramping {original_volume} -> {target} *********");
+                let millis = Self::FADE_DURATION.as_millis();
+                for i in 1..millis {
+                    let progress = i.to_f32_lossy() / millis.to_f32_lossy();
+                    let faded = original_volume * (1.0 - progress) + target * progress;
+                    let log_faded = Self::log_volume(faded);
+                    self.dithered_volume.set_volume(log_faded);
+
+                    // This blocks the current thread for 1 ms, but is better than making the
+                    // function async and waiting for the future to complete.
+                    std::thread::sleep(Duration::from_millis(1));
                 }
-
-                // This blocks the current thread for 1 ms, but is better than making the
-                // function async and waiting for the future to complete.
-                std::thread::sleep(Duration::from_millis(1));
             }
+
+            debug!("******** setting {original_volume} -> {target} *********");
+            let log_target = Self::log_volume(target);
+            self.dithered_volume.set_volume(log_target);
 
             if let Some(dither_bits) = self.dithered_volume.dither_bits() {
                 if target > 0.0 {
@@ -1646,8 +1661,6 @@ impl Player {
             }
         }
 
-        // Store the unscaled volume setting for playback reporting.
-        self.volume = Percentage::from_ratio(target);
         original_volume
     }
 
