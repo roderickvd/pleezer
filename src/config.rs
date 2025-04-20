@@ -142,6 +142,9 @@ pub struct Config {
     /// Dither bit depth based on DAC linearity (ENOB)
     pub dither_bits: Option<f32>,
 
+    /// Noise shaping level
+    pub noise_shaping: u8,
+
     /// Maximum amount of RAM in bytes that can be used for storing audio files.
     /// `None` means use temporary files instead of RAM.
     pub max_ram: Option<u64>,

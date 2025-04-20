@@ -113,6 +113,7 @@ pub mod player;
 pub mod protocol;
 pub mod proxy;
 pub mod remote;
+pub mod shape;
 pub mod signal;
 pub mod tokens;
 pub mod track;

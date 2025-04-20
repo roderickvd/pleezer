@@ -166,6 +166,15 @@ struct Args {
     )]
     dither_bits: Option<f32>,
 
+    /// Set noise shaping level
+    #[arg(
+        long,
+        value_parser = clap::value_parser!(u8).range(0..=6),
+        default_value_t = 2,
+        env = "PLEEZER_NOISE_SHAPING"
+    )]
+    noise_shaping: u8,
+
     /// Maximum RAM (in MB) to use for storing audio files in memory
     ///
     /// If not specified or if a track exceeds this limit, temporary files will be used.
@@ -499,10 +508,12 @@ async fn run(args: Args) -> Result<ShutdownSignal> {
             interruptions: !args.no_interruptions,
 
             normalization: args.normalize_volume,
-            dither_bits,
             initial_volume: args
                 .initial_volume
                 .map(|volume| Percentage::from_percent(volume as f32)),
+
+            dither_bits,
+            noise_shaping: args.noise_shaping,
 
             // Convert MB to bytes
             max_ram: args.max_ram.map(|mb| mb * 1024 * 1024),

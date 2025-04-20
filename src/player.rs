@@ -190,6 +190,9 @@ pub struct Player {
     /// Bit depth for dithering.
     dither_bits: Option<f32>,
 
+    /// Noise shaping for dithering.
+    noise_shaping: u8,
+
     /// Channel for sending playback events.
     ///
     /// Events include:
@@ -324,6 +327,7 @@ impl Player {
             volume,
             dithered_volume,
             dither_bits: config.dither_bits,
+            noise_shaping: config.noise_shaping,
             event_tx: None,
             playing_since: Duration::ZERO,
             deferred_seek: None,
@@ -617,6 +621,7 @@ impl Player {
         sink.append(dither::dithered_volume(
             output,
             self.dithered_volume.clone(),
+            self.noise_shaping,
         ));
         sink.pause();
 
@@ -1435,8 +1440,9 @@ impl Player {
     pub fn clear(&mut self) {
         // Apply a short fade-out to prevent popping.
         let original_volume = self.ramp_volume(0.0);
-
         let volume_control = self.dithered_volume.clone();
+        let noise_shaping = self.noise_shaping;
+
         if let Ok(sink) = self.sink_mut() {
             // Don't *clear* the sink, because that makes Rodio:
             // - drop the entire output queue
@@ -1451,7 +1457,11 @@ impl Player {
 
             // With Rodio having dropped the previous output queue, we need to create a new one.
             let (sources, output) = rodio::queue::queue(true);
-            sink.append(dither::dithered_volume(output, volume_control));
+            sink.append(dither::dithered_volume(
+                output,
+                volume_control,
+                noise_shaping,
+            ));
             self.sources = Some(sources);
         }
 
