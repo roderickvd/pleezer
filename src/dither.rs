@@ -254,8 +254,11 @@ where
 
     #[inline]
     fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
-        self.quantization_error_history.reset();
-        self.input.try_seek(pos)
+        let result = self.input.try_seek(pos);
+        if result.is_ok() {
+            self.quantization_error_history.reset();
+        }
+        result
     }
 }
 
