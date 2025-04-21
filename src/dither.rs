@@ -48,7 +48,6 @@ use crate::{ringbuf::RingBuffer, util::UNITY_GAIN, volume::Volume};
 ///
 /// The actual filter used depends on both the sample rate and chosen profile.
 #[expect(clippy::too_many_lines)]
-#[expect(clippy::wildcard_imports)]
 pub fn dithered_volume<I>(
     input: I,
     volume: Arc<Volume>,
@@ -57,7 +56,7 @@ pub fn dithered_volume<I>(
 where
     I: Source + Send + 'static,
 {
-    use coeffs::*;
+    use coeffs::{SHIBATA_441_ATH_A_0, SHIBATA_441_ATH_A_1, SHIBATA_441_ATH_A_2, SHIBATA_441_ATH_A_3, SHIBATA_441_ATH_A_4, SHIBATA_441_ATH_A_5, SHIBATA_441_ATH_A_6, SHIBATA_48_ATH_A_0, SHIBATA_48_ATH_A_1, SHIBATA_48_ATH_A_2, SHIBATA_48_ATH_A_3, SHIBATA_48_ATH_A_4, SHIBATA_48_ATH_A_5, SHIBATA_48_ATH_A_6};
 
     if noise_shaping_profile == 0 {
         debug!("noise shaping profile: disabled");

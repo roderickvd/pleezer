@@ -540,7 +540,6 @@ impl Player {
     /// * Device cannot be opened
     /// * Output stream creation fails
     /// * Sink creation fails
-    #[expect(clippy::enum_glob_use)]
     pub fn start(&mut self) -> Result<()> {
         if self.is_started() {
             return Ok(());
@@ -598,7 +597,7 @@ impl Player {
             })
             .or_else(|| {
                 // Set a default dithering level
-                use cpal::SampleFormat::*;
+                use cpal::SampleFormat::{I16, I32, I64, I8, U16, U32, U64, U8};
                 let bits = match device_config.sample_format() {
                     // Very low fidelity, e.g., legacy or telephony
                     I8 | U8 => 7.0,
