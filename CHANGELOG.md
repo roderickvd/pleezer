@@ -14,6 +14,7 @@ and [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/).
 
 ### Changed
 - [normalize] Further improve normalization algorithm based on benchmark results
+- [player] Improved volume ramping to prevent audio pops during track changes, seeks and stops
 
 ## [0.16.0] - 2025-04-13
 
