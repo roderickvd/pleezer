@@ -1,3 +1,14 @@
+//! Audio dithering and noise shaping implementation.
+//!
+//! This module implements:
+//! * Triangular PDF (TPDF) dithering for optimal noise characteristics
+//! * Shibata noise shaping filters for psychoacoustic optimization
+//! * Volume control with dither and noise shaping integration
+//!
+//! The noise shaping uses Shibata filter coefficients from SSRC, optimized for
+//! different sample rates and aggressiveness levels. These push quantization
+//! noise to less audible frequencies based on human hearing characteristics.
+
 // This file contains Shibata noise shaping filter coefficients from SSRC
 // (a fast and high quality sampling rate converter).
 //
@@ -14,6 +25,28 @@ use rodio::{Source, source::SeekError};
 
 use crate::{ringbuf::RingBuffer, util::UNITY_GAIN, volume::Volume};
 
+/// Creates a new audio source with dithered volume control and optional noise shaping.
+///
+/// # Arguments
+///
+/// * `input` - The source audio stream
+/// * `volume` - Volume control with optional dithering parameters
+/// * `noise_shaping_profile` - Noise shaping aggression level:
+///   - 0: Plain TPDF dither without shaping
+///   - 1: Conservative noise shaping
+///   - 2: Balanced noise shaping (recommended default)
+///   - 3: Strong noise shaping
+///   - 4-7: Very aggressive shaping (not recommended for playback)
+///
+/// # Implementation Details
+///
+/// * Uses TPDF dither to convert truncation to rounding
+/// * Applies DC offset compensation
+/// * For noise shaping profiles 1-7, uses Shibata filters optimized for 44.1/48kHz
+/// * Manages headroom to prevent clipping
+/// * Maintains error history for noise shaping feedback
+///
+/// The actual filter used depends on both the sample rate and chosen profile.
 #[expect(clippy::too_many_lines)]
 #[expect(clippy::wildcard_imports)]
 pub fn dithered_volume<I>(
@@ -141,13 +174,31 @@ where
     }
 }
 
+/// Audio source with integrated dithering, noise shaping and volume control.
+///
+/// Processes audio samples with:
+/// * Volume scaling
+/// * TPDF dither when reducing bit depth
+/// * Noise shaping using Shibata filters (when enabled)
+/// * DC offset compensation
+///
+/// Type parameter N determines the noise shaping filter length,
+/// varies by sample rate and chosen profile.
 #[derive(Debug, Clone)]
 pub struct DitheredVolume<I, const N: usize> {
+    /// The underlying audio source
     input: I,
+
+    /// Volume control with dithering parameters
     volume: Arc<Volume>,
-    // Initialize a dedicated random number generator for more efficiency
+
+    /// Fast random number generator for TPDF dither
     rng: fastrand::Rng,
+
+    /// Ring buffer storing previous quantization errors for noise shaping
     quantization_error_history: RingBuffer<N>,
+
+    /// Shibata filter coefficients for the current sample rate and profile
     filter_coefficients: &'static [f32; N],
 }
 
@@ -155,19 +206,19 @@ impl<I, const N: usize> DitheredVolume<I, N>
 where
     I: Source,
 {
-    /// Returns a reference to the inner source.
+    /// Returns a reference to the underlying audio source.
     #[inline]
     pub fn inner(&self) -> &I {
         &self.input
     }
 
-    /// Returns a mutable reference to the inner source.
+    /// Returns a mutable reference to the underlying audio source.
     #[inline]
     pub fn inner_mut(&mut self) -> &mut I {
         &mut self.input
     }
 
-    /// Returns the inner source.
+    /// Consumes self and returns the underlying audio source.
     #[inline]
     pub fn into_inner(self) -> I {
         self.input
@@ -262,11 +313,13 @@ where
     }
 }
 
-// Shibata noise shaping filter coefficients from SSRC
-// Written by Naoki Shibata (shibatch@users.sourceforge.net)
-// Licensed under LGPL-2.1
-// These coefficients are designed for optimal perceptual noise shaping
-pub mod coeffs {
+/// Module containing Shibata noise shaping filter coefficients.
+///
+/// These coefficients are from SSRC (Sample rate converter) by Naoki Shibata,
+/// licensed under LGPL-2.1. They are designed for optimal perceptual noise shaping
+/// based on human hearing characteristics.
+mod coeffs {
+    /// Conservative noise shaping filter for 44.1kHz (12 coefficients)
     pub const SHIBATA_441_ATH_A_0: [f32; 12] = [
         -0.595_437_8,
         0.002_507_873,
@@ -282,6 +335,7 @@ pub mod coeffs {
         -0.031_739_63,
     ];
 
+    /// Balanced noise shaping filter for 44.1kHz (12 coefficients)
     pub const SHIBATA_441_ATH_A_1: [f32; 12] = [
         -0.998_202,
         0.599_515_4,
@@ -297,6 +351,7 @@ pub mod coeffs {
         6.856_103_6e-7,
     ];
 
+    /// Strong noise shaping filter for 44.1kHz (24 coefficients)
     pub const SHIBATA_441_ATH_A_2: [f32; 24] = [
         -1.356_863_9,
         1.225_293_5,
@@ -324,6 +379,7 @@ pub mod coeffs {
         4.106_017_5e-5,
     ];
 
+    /// Aggressive noise shaping filter for 44.1kHz (16 coefficients)
     pub const SHIBATA_441_ATH_A_3: [f32; 16] = [
         -1.771_483_5,
         2.160_381_3,
@@ -343,6 +399,7 @@ pub mod coeffs {
         0.004_087_016_5,
     ];
 
+    /// Very aggressive noise shaping filter for 44.1kHz (20 coefficients)
     pub const SHIBATA_441_ATH_A_4: [f32; 20] = [
         -2.155_173,
         3.148_202_7,
@@ -366,6 +423,7 @@ pub mod coeffs {
         -0.000_932_779_86,
     ];
 
+    /// Extremely aggressive noise shaping filter for 44.1kHz (16 coefficients)
     pub const SHIBATA_441_ATH_A_5: [f32; 16] = [
         -2.509_607_6,
         4.251_982,
@@ -385,6 +443,7 @@ pub mod coeffs {
         -7.114_16e-7,
     ];
 
+    /// Maximum aggression noise shaping filter for 44.1kHz (20 coefficients)
     pub const SHIBATA_441_ATH_A_6: [f32; 20] = [
         -2.826_326_6,
         5.353_436,
@@ -408,6 +467,7 @@ pub mod coeffs {
         -0.000_964_893_44,
     ];
 
+    /// Conservative noise shaping filter for 48kHz (16 coefficients)
     pub const SHIBATA_48_ATH_A_0: [f32; 16] = [
         -0.648_154_4,
         0.000_132_923_29,
@@ -427,6 +487,7 @@ pub mod coeffs {
         -2.413_082e-9,
     ];
 
+    /// Balanced noise shaping filter for 48kHz (16 coefficients)
     pub const SHIBATA_48_ATH_A_1: [f32; 16] = [
         -1.037_501_5,
         0.555_852_53,
@@ -446,6 +507,7 @@ pub mod coeffs {
         0.001_676_786_5,
     ];
 
+    /// Strong noise shaping filter for 48kHz (16 coefficients)
     pub const SHIBATA_48_ATH_A_2: [f32; 16] = [
         -1.491_957_8,
         1.308_917_9,
@@ -465,6 +527,7 @@ pub mod coeffs {
         0.002_505_671,
     ];
 
+    /// Aggressive noise shaping filter for 48kHz (19 coefficients)
     pub const SHIBATA_48_ATH_A_3: [f32; 19] = [
         -1.960_159_2,
         2.406_054_7,
@@ -487,6 +550,7 @@ pub mod coeffs {
         8.033_391e-5,
     ];
 
+    /// Very aggressive noise shaping filter for 48kHz (28 coefficients)
     pub const SHIBATA_48_ATH_A_4: [f32; 28] = [
         -2.421_972_8,
         3.637_804_5,
@@ -518,6 +582,7 @@ pub mod coeffs {
         5.855_179e-5,
     ];
 
+    /// Extremely aggressive noise shaping filter for 48kHz (20 coefficients)
     pub const SHIBATA_48_ATH_A_5: [f32; 20] = [
         -2.846_033_3,
         5.035_543,
@@ -541,6 +606,7 @@ pub mod coeffs {
         -6.372_233e-5,
     ];
 
+    /// Maximum aggression noise shaping filter for 48kHz (28 coefficients)
     pub const SHIBATA_48_ATH_A_6: [f32; 28] = [
         -3.260_151_6,
         6.557_569_5,

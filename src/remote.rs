@@ -154,6 +154,18 @@ use crate::{
 };
 
 /// A client on the Deezer Connect protocol.
+///
+/// Handles:
+/// * Device discovery and connections
+/// * Command processing
+/// * Queue management
+/// * Playback state synchronization
+/// * Volume and audio quality management:
+///   - Initial volume handling
+///   - Quality level selection
+///   - Volume normalization
+///   - Device bit depth matching
+/// * Event notifications
 pub struct Client {
     /// Unique identifier for this device
     device_id: DeviceId,
@@ -866,13 +878,17 @@ impl Client {
     /// Processes received events.
     ///
     /// Handles:
-    /// * Play - Track started
-    /// * Pause - Playback paused
-    /// * `TrackChanged` - New track active
-    /// * Connected - Controller connected
-    /// * Disconnected - Controller disconnected
+    /// * `Play` - Track started, updates stream state
+    /// * `Pause` - Playback paused
+    /// * `TrackChanged` - New track active, updates track info and audio parameters
+    /// * Connected - Controller connected, configures initial settings
+    /// * Disconnected - Controller disconnected, resets state
     ///
-    /// Executes hook script if configured.
+    /// Also:
+    /// * Executes hook script if configured
+    /// * Reports playback progress
+    /// * Manages Flow queue extension
+    /// * Updates audio device settings
     ///
     /// # Arguments
     ///

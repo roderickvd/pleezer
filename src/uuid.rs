@@ -24,6 +24,11 @@
 //!
 //! assert_eq!(uuid, parsed_uuid);
 //! ```
+//!
+//! # Performance Note
+//! While this implementation provides faster UUID generation using `fastrand`,
+//! it should not be used in security-critical contexts where UUID predictability
+//! must be prevented.
 
 use crate::error::Error;
 use std::{fmt, ops::Deref, str::FromStr};

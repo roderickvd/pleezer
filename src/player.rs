@@ -9,6 +9,10 @@
 //!   - Fallback: `ReplayGain` metadata from external files (e.g., podcasts)
 //!   - Target: -15 LUFS with headroom protection
 //!   - Dynamic range compression for loud content
+//! * High-quality dithering and noise shaping
+//!   - TPDF dither with DC offset compensation
+//!   - Psychoacoustic noise shaping (Shibata filters)
+//!   - Configurable for different DAC capabilities
 //! * Event notifications
 //!
 //! # Audio Pipeline
@@ -22,8 +26,12 @@
 //!    * WAV: PCM decoding
 //! 3. Volume normalization (optional)
 //! 4. Logarithmic volume control
-//! 5. Fade-out processing for smooth transitions
-//! 6. Audio device output
+//! 5. Dithering and noise shaping:
+//!    * TPDF dither with optimal noise characteristics
+//!    * Shibata noise shaping filters (when enabled)
+//!    * Automatic headroom management
+//! 6. Fade-out processing for smooth transitions
+//! 7. Audio device output
 //!
 //! # Features
 //!
@@ -31,6 +39,7 @@
 //! * Optimized CBR MP3 seeking
 //! * Track preloading for gapless playback
 //! * Volume normalization with limiter
+//! * High-quality dither and noise shaping
 //! * Flexible audio device selection
 //! * Multiple audio host support
 //!

@@ -528,24 +528,25 @@ impl Error {
     }
 }
 
-/// Returns the underlying error source.
+/// Standard error implementation that allows access to the underlying error source.
 ///
-/// This allows error chains to be examined for root causes.
+/// This enables error chaining, allowing examination of the complete error chain
+/// from the root cause up.
 impl std::error::Error for Error {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         self.error.source()
     }
 }
 
-/// Formats the error for display, showing both kind and details.
+/// Display formatting for errors, showing both the error kind and details.
 ///
 /// Format: "{kind}: {details}"
 ///
 /// # Examples
 ///
-/// ```rust
+/// ```
 /// let err = Error::not_found("user not found");
-/// assert_eq!(err.to_string(), "Not found: user not found");
+/// assert_eq!(err.to_string(), "not found: user not found");
 /// ```
 impl fmt::Display for Error {
     fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -896,6 +897,11 @@ impl From<std::net::AddrParseError> for Error {
     }
 }
 
+/// Integer overflow error conversion.
+///
+/// Maps integer type conversion errors to `InvalidArgument`.
+/// Occurs when converting between integer types where the value
+/// doesn't fit in the target type.
 impl From<std::num::TryFromIntError> for Error {
     fn from(e: std::num::TryFromIntError) -> Self {
         Self::invalid_argument(e)

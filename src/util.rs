@@ -4,10 +4,23 @@
 //! * Type conversion traits for audio processing
 //! * Numeric value handling for sample calculations
 //! * Safe floating point conversions
-//! * Audio gain calculations:
-//!   - Decibel to ratio conversion
-//!   - Ratio to decibel conversion
+//! * Audio processing utilities:
+//!   - Decibel/ratio conversions
+//!   - Bit depth calculations
+//!   - Quantization step sizing
 //!   - Common audio constants
+//!
+//! # Audio Processing
+//!
+//! ## Volume and Gain
+//! * Decibel to ratio conversion for volume changes
+//! * Ratio to decibel conversion for metering
+//! * Volume-aware bit depth calculations
+//!
+//! ## Bit Depth and Dithering
+//! * Effective bit depth calculation based on volume
+//! * Quantization step size computation
+//! * Support for output device bit depth matching
 //!
 //! # Audio Constants
 //!
@@ -19,7 +32,8 @@
 //! # Example
 //!
 //! ```rust
-//! use pleezer::util::{ToF32, db_to_ratio, ratio_to_db};
+//! use pleezer::util::{ToF32, db_to_ratio, ratio_to_db,
+//!                     calculate_effective_bit_depth, calculate_quantization_step};
 //!
 //! // Safe numeric conversion
 //! let large_value: f64 = 1e308;
@@ -28,6 +42,10 @@
 //! // Audio gain calculations
 //! let ratio = db_to_ratio(-6.0);  // Convert -6 dB to ratio
 //! let db = ratio_to_db(0.5);      // Convert 0.5 ratio to dB
+//!
+//! // Bit depth calculations
+//! let effective_bits = calculate_effective_bit_depth(24.0, 16, 1.0);
+//! let quant_step = calculate_quantization_step(24.0, 16, 1.0);
 //! ```
 
 use std::f32::consts::{LOG2_10, LOG10_2};

@@ -52,7 +52,10 @@ Need help? Check out [Troubleshooting](#troubleshooting) or join our [Discussion
 
 - Stream music in formats from MP3 to lossless FLAC (depending on your subscription)
 - Access your full Deezer library: songs, podcasts, radio, mixes, and Flow
-- Control volume with smart leveling and normalization
+- High-quality audio processing:
+  * High-quality dithering with Shibata noise shaping
+  * Volume-aware dither scaling
+  * Smart volume normalization
 - Connect to standard audio outputs, or use JACK (Linux) or ASIO (Windows)
 - Automate with hook scripts and external controls
 - Run reliably with stateless operation and proper signal handling
@@ -98,8 +101,6 @@ pleezer -d "USB DAC"                      # Use USB audio device
 pleezer -d "JACK|cpal_audio_out"          # Connect to JACK (Linux)
 pleezer -d "ASIO|USB Audio Interface"     # Use ASIO device (Windows)
 ```
-
-See [Advanced Audio Configuration](#advanced-audio-configuration) for more options.
 
 ### Volume Control
 
@@ -284,6 +285,29 @@ pleezer -d "ASIO|USB Interface"             # ASIO device
 - Resampling happens automatically when needed
 - 32-bit formats (i32/f32) recommended with volume normalization
 - Advanced: While device enumeration shows only common configurations (44.1/48 kHz, I16/I32/F32), other sample rates (e.g., 96 kHz) and formats (e.g., U16) are supported when explicitly specified in the device string
+
+### Audio Processing
+
+#### Dithering
+pleezer improves audio quality through:
+- High-quality dithering with Shibata noise shaping
+- Volume-aware dither scaling to preserve dynamic range
+- Automatic adjustment based on content and playback settings
+
+The dithering process:
+- Applies when requantizing audio for your DAC
+- Adapts to volume changes to maintain quality
+
+#### Volume Normalization
+Enable volume normalization for consistent levels:
+```bash
+pleezer --normalize-volume
+```
+
+The normalizer:
+- Uses track replay gain metadata when available
+- Maintains proper dithering during volume changes
+- Preserves audio quality while adjusting levels
 
 ### Memory Usage
 

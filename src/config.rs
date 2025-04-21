@@ -86,11 +86,42 @@ pub enum Credentials {
 /// Contains all settings needed to:
 /// * Authenticate with Deezer
 /// * Identify the device
-/// * Configure playback behavior
+/// * Configure playback behavior and audio quality
+/// * Configure audio processing (dithering and noise shaping)
 /// * Set up API access
 ///
 /// Most settings have reasonable defaults that can be overridden
 /// as needed.
+///
+/// # Examples
+///
+/// ```rust
+/// use pleezer::config::Config;
+///
+/// // High-end DAC configuration
+/// let config = Config {
+///     // ... other settings ...
+///     dither_bits: Some(19.5),  // High-end delta-sigma DAC
+///     noise_shaping: 2,         // Balanced noise shaping (recommended)
+///     // ... other settings ...
+/// };
+///
+/// // Mid-range DAC configuration
+/// let config = Config {
+///     // ... other settings ...
+///     dither_bits: Some(15.5),  // Typical 16-bit DAC
+///     noise_shaping: 1,         // Conservative noise shaping
+///     // ... other settings ...
+/// };
+///
+/// // Basic or analysis configuration
+/// let config = Config {
+///     // ... other settings ...
+///     dither_bits: None,        // No dithering
+///     noise_shaping: 0,         // No noise shaping (pure TPDF when dithering)
+///     // ... other settings ...
+/// };
+/// ```
 #[derive(Clone, PartialEq, PartialOrd, Debug)]
 pub struct Config {
     /// The name of the application.
@@ -139,10 +170,40 @@ pub struct Config {
     /// None means no volume override.
     pub initial_volume: Option<Percentage>,
 
-    /// Dither bit depth based on DAC linearity (ENOB)
+    /// Dither bit depth based on DAC linearity (ENOB - Effective Number of Bits)
+    ///
+    /// This setting enables dithering to improve audio quality when reducing bit depth.
+    /// The value represents the DAC's effective resolution in bits, accounting for
+    /// non-linearity. Common values:
+    /// * 18-20 - High-end consumer / pro audio DACs
+    /// * 16-18 - Consumer audio (mid-range DACs)
+    /// * `None` - Disable dithering
+    ///
+    /// If not specified, defaults are chosen based on the output format:
+    /// * 24.0 bits for 64-bit integer
+    /// * 19.5 bits for 32-bit integer
+    /// * 15.5 bits for 16-bit integer
+    /// * 7.0 bits for 8-bit integer
+    /// * No dithering for floating point
     pub dither_bits: Option<f32>,
 
-    /// Noise shaping level
+    /// Noise shaping level for the dithering process.
+    ///
+    /// Uses psychoacoustic-optimized Shibata filters to shape quantization/dither noise
+    /// to less audible frequencies. Available levels:
+    /// * 0: Plain TPDF dither without shaping - technically clean but more audible
+    /// * 1: Conservative noise shaping - very safe, nearly neutral
+    /// * 2: Balanced noise shaping - recommended default, best psychoacoustic masking without
+    ///   excess ultrasonic energy
+    /// * 3: Strong noise shaping - starts pushing noise above 12kHz
+    /// * 4-7: Very aggressive shaping - designed for bit depth reduction, not recommended for
+    ///   playback
+    ///
+    /// For general music playback, level 2 offers the best balance between masking
+    /// quantization noise and avoiding excessive ultrasonic content. Level 0 (plain TPDF)
+    /// is ideal for analysis or when ultrasonic energy must be minimized.
+    ///
+    /// The actual filter characteristics depend on the sample rate (44.1kHz or 48kHz).
     pub noise_shaping: u8,
 
     /// Maximum amount of RAM in bytes that can be used for storing audio files.

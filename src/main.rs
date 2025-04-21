@@ -6,6 +6,10 @@
 //! * Configuration loading
 //! * Application lifecycle
 //! * Connection retry logic with exponential backoff
+//! * Audio quality settings:
+//!   - Volume normalization
+//!   - Dithering with configurable bit depth
+//!   - Psychoacoustic noise shaping
 //!
 //! * Audio content:
 //!   - Songs
@@ -99,7 +103,11 @@ const MAX_BACKOFF: Duration = Duration::from_secs(10);
 /// Provides configuration options for:
 /// * Authentication (secrets file)
 /// * Device identification (name, type)
-/// * Audio settings (device, normalization)
+/// * Audio settings:
+///   - Output device selection
+///   - Volume normalization
+///   - Dithering configuration
+///   - Noise shaping profiles
 /// * Connection behavior (interruptions, binding)
 /// * Debug features (logging, eavesdropping)
 ///
@@ -168,11 +176,16 @@ struct Args {
 
     /// Set noise shaping level
     ///
-    /// Set to 1 to 7 for increasing noise shaping, or 0 to disable.
+    /// Level 2 (default) provides balanced noise shaping for optimal playback.
+    /// * 0: Plain TPDF dither without shaping
+    /// * 1: Conservative noise shaping
+    /// * 2: Balanced noise shaping (recommended)
+    /// * 3: Strong noise shaping
+    /// * 4-7: Very aggressive shaping (not recommended for playback)
     #[arg(
         long,
         value_parser = clap::value_parser!(u8).range(0..=7),
-        default_value_t = 3,
+        default_value_t = 2,
         env = "PLEEZER_NOISE_SHAPING"
     )]
     noise_shaping: u8,

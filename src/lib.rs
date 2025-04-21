@@ -9,7 +9,10 @@
 //!   official Deezer apps
 //! * **Audio Playback**: High-quality audio streaming with gapless playback support
 //! * **Format Support**: Handles MP3 and FLAC formats based on subscription level
-//! * **Volume Normalization**: Optional audio leveling with configurable target gain
+//! * **Audio Processing**:
+//!   - Volume normalization with configurable target gain
+//!   - High-quality dithering with psychoacoustic noise shaping
+//!   - Configurable for different DAC capabilities
 //!
 //! # Architecture
 //!
@@ -25,7 +28,10 @@
 //!   - [`decrypt`]: Handles encrypted content
 //!   - [`decoder`]: Audio format decoding
 //!   - [`normalize`]: Audio leveling and dynamic range control
+//!   - [`dither`]: High-quality dithering and noise shaping
+//!   - [`volume`]: Volume control with dithering integration
 //!   - [`player`]: Controls audio playback and queues
+//!   - [`ringbuf`]: Ring buffer for audio processing
 //!   - [`track`]: Manages track metadata and downloads
 //!
 //! * **Authentication**

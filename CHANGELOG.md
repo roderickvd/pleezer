@@ -7,6 +7,11 @@ and [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/).
 
 ## [Unreleased]
 
+### Added
+- [dither] High-quality dithering with Shibata noise shaping for optimal requantization
+- [volume] Automatic bit depth matching between DAC and content
+- [volume] Volume-aware dither scaling to preserve dynamic range
+
 ### Changed
 - [normalize] Further improve normalization algorithm based on benchmark results
 
