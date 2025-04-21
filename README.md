@@ -490,6 +490,11 @@ These projects have influenced **pleezer**:
 - [librespot](https://github.com/librespot-org/librespot): An open-source client library for Spotify with support for Spotify Connect
 - [lms-deezer](https://github.com/philippe44/lms-deezer): A plugin for Logitech Media Server to stream music from Deezer
 
+## Acknowledgements
+This project uses:
+- Shibata noise shaping coefficients from [SSRC](https://github.com/shibatch/SSRC) by Naoki Shibata, licensed under LGPL-2.1
+- See [ATTRIBUTION.md](https://github.com/roderickvd/pleezer/blob/main/ATTRIBUTION.md) for details on third-party components
+
 ## Legal Information
 
 ### License
