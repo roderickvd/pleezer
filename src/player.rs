@@ -597,7 +597,7 @@ impl Player {
             })
             .or_else(|| {
                 // Set a default dithering level
-                use cpal::SampleFormat::{I16, I32, I64, I8, U16, U32, U64, U8};
+                use cpal::SampleFormat::{I8, I16, I32, I64, U8, U16, U32, U64};
                 let bits = match device_config.sample_format() {
                     // Very low fidelity, e.g., legacy or telephony
                     I8 | U8 => 7.0,
