@@ -603,7 +603,8 @@ impl Player {
                     _ => return None,
                 };
                 Some(bits)
-            });
+            })
+            .and_then(|bits| if bits > 0.0 { Some(bits) } else { None });
         if let Some(bits) = dither_bits {
             debug!("dithering: {bits} effective number of bits");
         } else {
@@ -770,7 +771,7 @@ impl Player {
 
         if self.position() != old_position {
             self.dithered_volume
-                .set_track_bits(self.track().and_then(|track| track.bits_per_sample));
+                .set_track_bit_depth(self.track().and_then(|track| track.bits_per_sample));
             self.preload_start = self.calc_preload_start(self.track().and_then(Track::duration));
             self.notify(Event::TrackChanged);
         }
@@ -1101,7 +1102,7 @@ impl Player {
                                 Ok(rx) => {
                                     if let Some(rx) = rx {
                                         self.current_rx = Some(rx);
-                                        self.dithered_volume.set_track_bits(track_bits);
+                                        self.dithered_volume.set_track_bit_depth(track_bits);
                                         self.preload_start = self.calc_preload_start(track_dur);
                                         self.notify(Event::TrackChanged);
                                         if self.is_playing() {
@@ -1664,7 +1665,7 @@ impl Player {
             let log_target = Self::log_volume(target);
             self.dithered_volume.set_volume(log_target);
 
-            if let Some(dither_bits) = self.dithered_volume.dither_bits() {
+            if let Some(dither_bits) = self.dithered_volume.effective_bit_depth() {
                 if target > 0.0 {
                     debug!("volume control dither: {dither_bits:.1} bits");
                 }

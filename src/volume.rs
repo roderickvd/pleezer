@@ -13,9 +13,9 @@ pub struct Volume {
 
 #[derive(Debug)]
 struct Dither {
-    dac_bits: f32,
-    track_bits: AtomicU32,
-    scale: AtomicU32,
+    dac_bit_depth: f32,
+    track_bit_depth: AtomicU32,
+    quantization_step: AtomicU32,
 }
 
 impl Default for Volume {
@@ -39,18 +39,20 @@ impl Volume {
         Self {
             volume: AtomicU32::new(volume.to_bits()),
             dither: dac_bits.map(|dac_bits| Dither {
-                dac_bits,
-                track_bits: AtomicU32::new(track_bits),
-                scale: AtomicU32::new(calculate_scale(dac_bits, track_bits, volume).to_bits()),
+                dac_bit_depth: dac_bits,
+                track_bit_depth: AtomicU32::new(track_bits),
+                quantization_step: AtomicU32::new(
+                    calculate_quantization_step(dac_bits, track_bits, volume).to_bits(),
+                ),
             }),
         }
     }
 
     #[must_use]
-    pub fn dither_scale(&self) -> Option<f32> {
+    pub fn quantization_step(&self) -> Option<f32> {
         self.dither
             .as_ref()
-            .map(|dither| f32::from_bits(dither.scale.load(Ordering::Relaxed)))
+            .map(|dither| f32::from_bits(dither.quantization_step.load(Ordering::Relaxed)))
     }
 
     #[must_use]
@@ -60,8 +62,11 @@ impl Volume {
 
     pub fn set_volume(&self, volume: f32) -> f32 {
         if let Some(dither) = self.dither.as_ref() {
-            let scale = calculate_scale(dither.dac_bits, self.track_bits(), volume);
-            dither.scale.store(scale.to_bits(), Ordering::Relaxed);
+            let quantization_step =
+                calculate_quantization_step(dither.dac_bit_depth, self.track_bit_depth(), volume);
+            dither
+                .quantization_step
+                .store(quantization_step.to_bits(), Ordering::Relaxed);
         }
 
         // set volume last: in case of low volume before, dithering would be at a fairly
@@ -72,40 +77,50 @@ impl Volume {
     }
 
     #[must_use]
-    pub fn track_bits(&self) -> u32 {
+    pub fn track_bit_depth(&self) -> u32 {
         self.dither
             .as_ref()
             .map_or(DEFAULT_BITS_PER_SAMPLE, |dither| {
-                dither.track_bits.load(Ordering::Relaxed)
+                dither.track_bit_depth.load(Ordering::Relaxed)
             })
     }
 
-    pub fn set_track_bits(&self, track_bits: Option<u32>) {
+    pub fn set_track_bit_depth(&self, track_bits: Option<u32>) {
         if let Some(dither) = self.dither.as_ref() {
             let track_bits = track_bits.unwrap_or(DEFAULT_BITS_PER_SAMPLE);
-            let scale = calculate_scale(dither.dac_bits, track_bits, self.volume());
-            dither.track_bits.store(track_bits, Ordering::Relaxed);
-            dither.scale.store(scale.to_bits(), Ordering::Relaxed);
+            let quant_level =
+                calculate_quantization_step(dither.dac_bit_depth, track_bits, self.volume());
+            dither.track_bit_depth.store(track_bits, Ordering::Relaxed);
+            dither
+                .quantization_step
+                .store(quant_level.to_bits(), Ordering::Relaxed);
         }
     }
 
     #[must_use]
-    pub fn dither_bits(&self) -> Option<f32> {
-        self.dither
-            .as_ref()
-            .map(|dither| calculate_dither_bits(dither.dac_bits, self.track_bits(), self.volume()))
+    pub fn effective_bit_depth(&self) -> Option<f32> {
+        self.dither.as_ref().map(|dither| {
+            calculate_effective_bit_depth(
+                dither.dac_bit_depth,
+                self.track_bit_depth(),
+                self.volume(),
+            )
+        })
     }
 }
 
 #[must_use]
-fn calculate_dither_bits(dac_bits: f32, track_bits: u32, volume: f32) -> f32 {
+fn calculate_effective_bit_depth(dac_bits: f32, track_bits: u32, volume: f32) -> f32 {
     // Scale to the magnitude of the volume, but not exceeding the track bits
     // and preventing -infinity
     f32::min(track_bits.to_f32_lossy(), dac_bits + volume.log2()).max(0.0)
 }
 
+/// Calculates the quantization step size based on effective bit depth
 #[must_use]
-fn calculate_scale(dac_bits: f32, track_bits: u32, volume: f32) -> f32 {
-    // 2 LSB of dither, scaling a number of unsigned bits to -1.0..1.0
-    1.0 / f32::powf(2.0, calculate_dither_bits(dac_bits, track_bits, volume))
+fn calculate_quantization_step(dac_bits: f32, track_bits: u32, volume: f32) -> f32 {
+    1.0 / f32::powf(
+        2.0,
+        calculate_effective_bit_depth(dac_bits, track_bits, volume),
+    )
 }

@@ -167,10 +167,12 @@ struct Args {
     dither_bits: Option<f32>,
 
     /// Set noise shaping level
+    ///
+    /// Set to 1 to 7 for increasing noise shaping, or 0 to disable.
     #[arg(
         long,
-        value_parser = clap::value_parser!(u8).range(0..=6),
-        default_value_t = 2,
+        value_parser = clap::value_parser!(u8).range(0..=7),
+        default_value_t = 3,
         env = "PLEEZER_NOISE_SHAPING"
     )]
     noise_shaping: u8,
@@ -370,16 +372,6 @@ async fn run(args: Args) -> Result<ShutdownSignal> {
         ));
     }
 
-    // Value of 0.0 disables dithering.
-    let dither_bits = if args
-        .dither_bits
-        .is_some_and(|bits| 2.0 * bits.abs() > f32::EPSILON * bits.abs())
-    {
-        args.dither_bits
-    } else {
-        None
-    };
-
     if args.device.as_ref().is_some_and(|device| device == "?") {
         // List available devices and exit.
         let devices = Player::enumerate_devices();
@@ -512,7 +504,7 @@ async fn run(args: Args) -> Result<ShutdownSignal> {
                 .initial_volume
                 .map(|volume| Percentage::from_percent(volume as f32)),
 
-            dither_bits,
+            dither_bits: args.dither_bits,
             noise_shaping: args.noise_shaping,
 
             // Convert MB to bytes
