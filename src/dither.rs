@@ -248,7 +248,7 @@ where
                 let dither = (self.rng.f32() - self.rng.f32()) * quantization_step;
                 let dc_offset = quantization_step * 0.5;
 
-                if N > 0 {
+                let dithered = if N > 0 {
                     // Noise shaping: apply filtered error feedback from previous samples to
                     // pre-compensate for quantization
                     let mut filtered_error = 0.0;
@@ -256,21 +256,21 @@ where
                         filtered_error +=
                             self.filter_coefficients[i] * self.quantization_error_history.get(i);
                     }
+                    let shaped_signal = sample - filtered_error + dither;
 
-                    // Apply dither and DC offset
-                    let shaped_signal = sample - filtered_error + dither + dc_offset;
-
-                    // Quantize to target bit depth (using truncation)
-                    let quantized = (shaped_signal / quantization_step).trunc() * quantization_step;
+                    // Calculate signal once quantized to its output sample format
+                    let quantized = ((shaped_signal + dc_offset) / quantization_step).trunc()
+                        * quantization_step;
 
                     // Calculate and store new error
                     let error = quantized - shaped_signal;
                     self.quantization_error_history.push(error);
-                    quantized * volume
+                    quantized
                 } else {
-                    // No noise shaping: only apply dither and DC offset
-                    (sample + dither) * volume + dc_offset
-                }
+                    // No noise shaping: only apply dither
+                    sample + dither
+                };
+                dithered * volume + dc_offset
             } else {
                 sample * volume
             }
