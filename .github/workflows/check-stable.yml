@@ -6,11 +6,13 @@ on:
     paths-ignore:
       - "**.md"
       - "docs/**"
+      - "licenses/**"
   pull_request:
     branches: ["main"]
     paths-ignore:
       - "**.md"
       - "docs/**"
+      - "licenses/**"
 
 jobs:
   check-stable:
