@@ -288,9 +288,26 @@ pleezer -d "ASIO|USB Interface"             # ASIO device
 
 ### Audio Processing
 
+#### Volume Normalization
+
+Enable volume normalization for consistent levels:
+```bash
+pleezer --normalize-volume
+```
+
+The normalizer provides intelligent gain adjustment to reach Deezer's target level (-15 dB LUFS):
+- For negative gain (loud tracks): Simple attenuation of average signal level
+- For positive gain (quiet tracks): Dynamic limiting to prevent clipping while preserving dynamics
+
+This approach ensures:
+- No clipping when boosting quiet tracks
+- No unnecessary processing on tracks that only need attenuation
+- Maximum dynamic range preservation
+
 #### Dithering
+
 pleezer improves audio quality through:
-- High-quality dithering with Shibata noise shaping
+- High-quality triangular (TPDF) dithering
 - Volume-aware dither scaling to preserve dynamic range
 - Automatic adjustment based on content and playback settings
 
@@ -298,16 +315,39 @@ The dithering process:
 - Applies when requantizing audio for your DAC
 - Adapts to volume changes to maintain quality
 
-#### Volume Normalization
-Enable volume normalization for consistent levels:
+Configure dithering based on your DAC's measured performance:
 ```bash
-pleezer --normalize-volume
+# Example for DAC with THD+N of -118 dB:
+pleezer --dither-bits 19.3
+
+# Disable dithering entirely:
+pleezer --dither-bits 0
 ```
 
-The normalizer:
-- Uses track replay gain metadata when available
-- Maintains proper dithering during volume changes
-- Preserves audio quality while adjusting levels
+Calculate optimal dither bits from DAC specifications:
+- For THD+N in dB: (-dB - 1.76) / 6.02
+  Example: THD+N of -118 dB → 19.3 bits
+- For THD+N as percentage: (-20 * log10(percentage) - 1.76) / 6.02
+  Example: THD+N of 0.0002% → 18.6 bits
+- Use 0 to disable dithering
+
+#### Noise Shaping
+
+pleezer uses psychoacoustic noise shaping to optimize audio quality:
+- Pushes quantization noise into less audible frequencies
+- Uses modern Shibata coefficients for optimal noise distribution
+- Provides 7 selectable noise shaping levels:
+  * Level 0: No shaping
+  * Level 1: Minimal shaping
+  * Level 2: Conservative shaping
+  * Level 3: Balanced shaping (default)
+  * Level 4–7: Aggressive shaping — reduces in-band noise further but shifts energy >15 kHz (use with caution)
+
+Configure noise shaping:
+```bash
+# Use noise shaping level 3 (default)
+pleezer --noise-shaping 3
+```
 
 ### Memory Usage
 
