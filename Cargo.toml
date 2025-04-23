@@ -14,11 +14,13 @@ documentation = "https://docs.rs/pleezer"
 include = [
     "benches/**/*",
     "src/**/*",
+    "ATTRIBUTION.md",
     "build.rs",
     "Cargo.lock",
     "Cargo.toml",
     "LICENSE.md",
     "README.md",
+    "licenses/**/*",
     "secrets.toml.example",
 ]
 
@@ -148,11 +150,6 @@ codegen-units = 1 # Optimize across the entire program
 # lto = true        # Enable Full Link Time Optimization
 
 [package.metadata.deb]
-copyright = "2024, Roderick van Domburg"
-depends = "libasound2"
-suggests = "libjack-dev"
-section = "sound"
-priority = "optional"
 assets = [
     [
         "target/release/pleezer",
@@ -170,11 +167,26 @@ assets = [
         "644",
     ],
     [
+        "ATTRIBUTION.md",
+        "usr/share/doc/pleezer/ATTRIBUTION.md",
+        "644",
+    ],
+    [
+        "licenses/LGPL-2.1.txt",
+        "usr/share/doc/pleezer/LGPL-2.1.txt",
+        "644",
+    ],
+    [
         "secrets.toml.example",
         "usr/share/doc/pleezer/secrets.toml.example",
         "644",
     ],
 ]
+copyright = "2024, Roderick van Domburg"
+depends = "libasound2"
+suggests = "libjack-dev"
+section = "sound"
+priority = "optional"
 extended-description = """\
 A headless streaming player built around the Deezer Connect protocol. \
 Enables streaming from Deezer to any Linux system without a graphical interface, \
