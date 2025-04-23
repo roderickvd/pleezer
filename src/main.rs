@@ -176,16 +176,19 @@ struct Args {
 
     /// Set noise shaping level
     ///
-    /// Level 2 (default) provides balanced noise shaping for optimal playback.
-    /// * 0: Plain TPDF dither without shaping
-    /// * 1: Conservative noise shaping
-    /// * 2: Balanced noise shaping (recommended)
-    /// * 3: Strong noise shaping
-    /// * 4-7: Very aggressive shaping (not recommended for playback)
+    /// Level 3 (default) offers balanced audible noise reduction without excessive ultrasonic
+    /// energy.
+    ///
+    /// * 0: Flat TPDF dither (no noise shaping)
+    /// * 1: Minimal shaping
+    /// * 2: Conservative shaping
+    /// * 3: Balanced shaping (default)
+    /// * 4–7: Aggressive shaping — reduces in-band noise further but shifts energy >15 kHz (use
+    ///   with caution)
     #[arg(
         long,
         value_parser = clap::value_parser!(u8).range(0..=7),
-        default_value_t = 2,
+        default_value_t = 3,
         env = "PLEEZER_NOISE_SHAPING",
         verbatim_doc_comment
     )]
