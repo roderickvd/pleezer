@@ -237,6 +237,8 @@ where
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
+        const DC_COMPENSATION: f32 = 0.5;
+
         self.input.next().map(|sample| {
             let mut volume = self.volume.volume();
 
@@ -244,9 +246,8 @@ where
                 // Apply volume attenuation, preventing clipping at full scale
                 volume = volume.min(UNITY_GAIN - quantization_step);
 
-                // Calculate TPDF dither and DC offset to convert truncation to rounding
+                // Calculate TPDF dither and DC compensation to convert truncation to rounding
                 let dither = (self.rng.f32() - self.rng.f32()) * quantization_step;
-                let dc_offset = quantization_step * 0.5;
 
                 let dithered = if N > 0 {
                     // Noise shaping: apply filtered error feedback from previous samples to
@@ -256,10 +257,10 @@ where
                         filtered_error +=
                             self.filter_coefficients[i] * self.quantization_error_history.get(i);
                     }
-                    let shaped_signal = sample - filtered_error + dither;
+                    let shaped_signal = sample + filtered_error + dither;
 
-                    // Calculate signal once quantized to its output sample format
-                    let quantized = ((shaped_signal + dc_offset) / quantization_step).trunc()
+                    // Quantize signal as if it were to its output sample format
+                    let quantized = (shaped_signal / quantization_step + DC_COMPENSATION).trunc()
                         * quantization_step;
 
                     // Calculate and store new error
@@ -270,7 +271,7 @@ where
                     // No noise shaping: only apply dither
                     sample + dither
                 };
-                dithered * volume + dc_offset
+                (dithered + DC_COMPENSATION * quantization_step) * volume
             } else {
                 sample * volume
             }
