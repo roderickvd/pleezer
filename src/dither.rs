@@ -1,13 +1,48 @@
-//! Audio dithering and noise shaping implementation.
+//! High-quality audio dithering and noise shaping implementation.
 //!
-//! This module implements:
-//! * Triangular PDF (TPDF) dithering for optimal noise characteristics
+//! This module provides professional-grade audio processing through:
+//! * Triangular Probability Density Function (TPDF) dithering for optimal noise characteristics
 //! * Shibata noise shaping filters for psychoacoustic optimization
-//! * Volume control with dither and noise shaping integration
+//! * Volume-aware dither scaling for dynamic range preservation
 //!
-//! The noise shaping uses Shibata filter coefficients from SSRC, optimized for
-//! different sample rates and aggressiveness levels. These push quantization
-//! noise to less audible frequencies based on human hearing characteristics.
+//! # Dithering
+//!
+//! The dithering process:
+//! * Applies when requantizing audio for DAC output
+//! * Uses TPDF (triangular) dither for superior noise characteristics
+//! * Scales dither amplitude based on volume for optimal dynamic range
+//! * Includes DC offset compensation to convert truncation to rounding
+//!
+//! # Noise Shaping
+//!
+//! The module uses Shibata noise shaping filters optimized for different sample rates
+//! and aggressiveness levels. These filters push quantization noise into less audible
+//! frequencies based on human hearing characteristics.
+//!
+//! Available noise shaping profiles:
+//! * Level 0: No shaping (plain TPDF dither)
+//! * Level 1: Minimal/conservative shaping
+//! * Level 2: Conservative shaping
+//! * Level 3: Balanced shaping (recommended default)
+//! * Level 4-7: Aggressive shaping - reduces in-band noise but shifts energy >15 kHz
+//!
+//! The actual filter coefficients are optimized for either 44.1 kHz or 48 kHz sample rates.
+//! If the input uses a different rate, noise shaping is automatically disabled.
+//!
+//! # Implementation Details
+//!
+//! The processing pipeline:
+//! 1. Applies volume scaling with headroom management
+//! 2. Generates TPDF dither noise scaled to quantization step
+//! 3. For noise shaping profiles 1-7:
+//!    * Filters previous quantization errors using Shibata coefficients
+//!    * Applies filtered error as pre-compensation
+//! 4. Quantizes the signal while tracking new error
+//! 5. Applies DC offset compensation
+//!
+//! The Shibata filter coefficients come from SSRC (Sample rate converter) by Naoki Shibata,
+//! licensed under LGPL-2.1. They are carefully designed for optimal perceptual noise
+//! distribution based on psychoacoustic research.
 
 // This file contains Shibata noise shaping filter coefficients from SSRC
 // (a fast and high quality sampling rate converter).
@@ -27,26 +62,44 @@ use crate::{ringbuf::RingBuffer, util::UNITY_GAIN, volume::Volume};
 
 /// Creates a new audio source with dithered volume control and optional noise shaping.
 ///
+/// This function integrates professional-grade audio processing:
+/// * TPDF (triangular) dithering for optimal noise characteristics
+/// * Volume-aware dither scaling to preserve dynamic range
+/// * Shibata noise shaping for psychoacoustic optimization
+/// * DC offset compensation to convert truncation to rounding
+///
 /// # Arguments
 ///
 /// * `input` - The source audio stream
 /// * `volume` - Volume control with optional dithering parameters
-/// * `noise_shaping_profile` - Noise shaping aggression level:
-///   - 0: Plain TPDF dither without shaping
-///   - 1: Conservative noise shaping
-///   - 2: Balanced noise shaping (recommended default)
-///   - 3: Strong noise shaping
-///   - 4-7: Very aggressive shaping (not recommended for playback)
+/// * `noise_shaping_profile` - Noise shaping aggressiveness level:
+///   - 0: No shaping (plain TPDF dither)
+///   - 1: Minimal/conservative shaping
+///   - 2: Conservative shaping
+///   - 3: Balanced shaping (recommended default)
+///   - 4-7: Aggressive shaping - reduces in-band noise but shifts energy >15 kHz
+///
+/// # Sample Rate Considerations
+///
+/// The noise shaping filters are optimized for common audio sample rates:
+/// * 44.1 kHz: Standard CD/digital audio rate
+/// * 48 kHz: Professional/broadcast standard rate
+///
+/// For other sample rates, noise shaping is automatically disabled (profile 0).
 ///
 /// # Implementation Details
 ///
-/// * Uses TPDF dither to convert truncation to rounding
-/// * Applies DC offset compensation
-/// * For noise shaping profiles 1-7, uses Shibata filters optimized for 44.1/48kHz
-/// * Manages headroom to prevent clipping
-/// * Maintains error history for noise shaping feedback
+/// The processing pipeline:
+/// 1. Applies volume scaling with headroom management
+/// 2. Generates TPDF dither noise scaled to quantization step
+/// 3. For noise shaping profiles 1-7:
+///    * Filters previous quantization errors using Shibata coefficients
+///    * Applies filtered error as pre-compensation
+/// 4. Quantizes the signal while tracking new error
+/// 5. Applies DC offset compensation
 ///
-/// The actual filter used depends on both the sample rate and chosen profile.
+/// The actual filter used depends on both the sample rate and chosen profile,
+/// with coefficients optimized for each combination.
 #[expect(clippy::too_many_lines)]
 pub fn dithered_volume<I>(
     input: I,

@@ -1612,14 +1612,14 @@ impl Player {
         // and store the target volume below for when playback starts.
         if self.is_started() {
             let target = target.as_ratio();
-            let new = Percentage::from_ratio(self.ramp_volume(target));
+            let old = Percentage::from_ratio(self.ramp_volume(target));
             if target > 0.0 && target < 1.0 {
                 debug!(
                     "volume scaled logarithmically to {}",
                     Self::log_volume(target)
                 );
             }
-            new
+            old
         } else {
             current
         }
@@ -1627,7 +1627,7 @@ impl Player {
 
     /// Gradually changes audio volume over a short duration to prevent popping.
     ///
-    /// Applies a logarithmic volume ramp  between the current and target volumes over
+    /// Applies a logarithmic volume ramp between the current and target volumes over
     /// `FADE_DURATION` milliseconds. This prevents audio artifacts that can occur with
     /// sudden volume changes.
     ///
