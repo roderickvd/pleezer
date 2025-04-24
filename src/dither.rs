@@ -292,6 +292,10 @@ where
     fn next(&mut self) -> Option<Self::Item> {
         const DC_COMPENSATION: f32 = 0.5;
 
+        // When using noise shaping, the dither amplitude can be reduced by 3-6 dB,
+        // reducing the noise floor while still providing full linearization.
+        const NOISE_SHAPING_DITHER_AMPLITUDE: f32 = 0.5;
+
         self.input.next().map(|sample| {
             let mut volume = self.volume.volume();
 
@@ -299,8 +303,10 @@ where
                 // Apply volume attenuation, preventing clipping at full scale
                 volume = volume.min(UNITY_GAIN - quantization_step);
 
-                // Calculate TPDF dither and DC compensation to convert truncation to rounding
-                let dither = (self.rng.f32() - self.rng.f32()) * quantization_step;
+                // Calculate TPDF dither and DC compensation to convert truncation to rounding.
+                let dither = (self.rng.f32() - self.rng.f32())
+                    * NOISE_SHAPING_DITHER_AMPLITUDE
+                    * quantization_step;
 
                 let dithered = if N > 0 {
                     // Noise shaping: apply filtered error feedback from previous samples to
