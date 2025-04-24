@@ -7,6 +7,9 @@ and [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/).
 
 ## Unreleased
 
+### Added
+- [dither] Noise shaping support for additional sample rates
+
 ### Changed
 - [dither] Lowered noise shaping dither amplitude
 

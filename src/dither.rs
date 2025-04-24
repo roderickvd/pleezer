@@ -26,8 +26,16 @@
 //! * Level 3: Balanced shaping (recommended default)
 //! * Level 4-7: Aggressive shaping - reduces in-band noise but shifts energy >15 kHz
 //!
-//! The actual filter coefficients are optimized for either 44.1 kHz or 48 kHz sample rates.
-//! If the input uses a different rate, noise shaping is automatically disabled.
+//! Supported sample rates:
+//! * 44.1 kHz - Deezer's default streaming rate
+//! * 48 kHz - Common for podcasts and live radio
+//! * 22.05 kHz - May occur in spoken word content
+//! * 88.2/96/192 kHz - Support for potential future high-resolution audio
+//! * 8/11.025 kHz - Provided for completeness
+//!
+//! The noise shaping filters are optimized for each sample rate, with more aggressive
+//! profiles (3-7) available for 44.1 and 48 kHz where they are most beneficial.
+//! For other rates, fewer profiles are provided focusing on conservative shaping.
 //!
 //! # Implementation Details
 //!
@@ -44,17 +52,14 @@
 //! licensed under LGPL-2.1. They are carefully designed for optimal perceptual noise
 //! distribution based on psychoacoustic research.
 
-// This file contains Shibata noise shaping filter coefficients from SSRC
-// (a fast and high quality sampling rate converter).
-//
-// The coefficients are written by Naoki Shibata (shibatch@users.sourceforge.net)
-// and licensed under the GNU Lesser General Public License (LGPL) version 2.1.
-// They are used in this project for audio dithering and noise shaping.
-//
-// Original homepage: <http://shibatch.sourceforge.net/>
-
 use std::{sync::Arc, time::Duration};
 
+use coeffs::{
+    SHIBATA_8_ATH_A_0, SHIBATA_8_ATH_A_1, SHIBATA_11_ATH_A_0, SHIBATA_11_ATH_A_1,
+    SHIBATA_22_ATH_A_0, SHIBATA_22_ATH_A_1, SHIBATA_96_ATH_A_0, SHIBATA_96_ATH_A_1,
+    SHIBATA_96_ATH_A_2, SHIBATA_192_ATH_A_0, SHIBATA_192_ATH_A_1, SHIBATA_192_ATH_A_2,
+    SHIBATA_882_ATH_A_0, SHIBATA_882_ATH_A_1, SHIBATA_882_ATH_A_2,
+};
 use cpal::ChannelCount;
 use rodio::{Source, source::SeekError};
 
@@ -79,13 +84,16 @@ use crate::{ringbuf::RingBuffer, util::UNITY_GAIN, volume::Volume};
 ///   - 3: Balanced shaping (recommended default)
 ///   - 4-7: Aggressive shaping - reduces in-band noise but shifts energy >15 kHz
 ///
-/// # Sample Rate Considerations
+/// # Sample Rate Support
 ///
-/// The noise shaping filters are optimized for common audio sample rates:
-/// * 44.1 kHz: Standard CD/digital audio rate
-/// * 48 kHz: Professional/broadcast standard rate
+/// Optimized noise shaping for common audio rates:
+/// * 44.1 kHz - Deezer's default streaming rate (profiles 0-7)
+/// * 48 kHz - Common for podcasts and live radio (profiles 0-7)
+/// * 22.05 kHz - May occur in spoken word content (profiles 0-2)
+/// * 88.2/96/192 kHz - Support for potential future high-resolution audio (profiles 0-2)
+/// * 8/11.025 kHz - Provided for completeness (profiles 0-2)
 ///
-/// For other sample rates, noise shaping is automatically disabled (profile 0).
+/// For unsupported sample rates, noise shaping is automatically disabled (profile 0).
 ///
 /// # Implementation Details
 ///
@@ -116,110 +124,233 @@ where
         SHIBATA_441_ATH_A_5, SHIBATA_441_ATH_A_6,
     };
 
+    let sample_rate = input.sample_rate();
     if noise_shaping_profile == 0 {
         debug!("noise shaping profile: disabled");
     } else {
         debug!("noise shaping profile: {}", noise_shaping_profile.min(7));
+
+        if ![
+            8_000, 11_025, 22_050, 44_100, 48_000, 88_200, 96_000, 192_000,
+        ]
+        .contains(&sample_rate)
+        {
+            warn!("noise shaping not available for {sample_rate} Hz");
+        } else if noise_shaping_profile > 2 && ![44_100, 48_000].contains(&sample_rate) {
+            warn!("limiting noise shaping profile to 2 (highest available for {sample_rate} Hz)");
+        }
     }
 
-    match (input.sample_rate(), noise_shaping_profile) {
-        (44100, 1) => Box::new(DitheredVolume::<I, 12> {
+    match (sample_rate, noise_shaping_profile) {
+        (_, 0) => Box::new(DitheredVolume::<I, 0> {
+            input,
+            volume,
+            rng: fastrand::Rng::new(),
+            quantization_error_history: RingBuffer::new(),
+            filter_coefficients: &[],
+        }),
+        (44_100, 1) => Box::new(DitheredVolume::<I, 12> {
             input,
             volume,
             rng: fastrand::Rng::new(),
             quantization_error_history: RingBuffer::new(),
             filter_coefficients: &SHIBATA_441_ATH_A_0,
         }),
-        (44100, 2) => Box::new(DitheredVolume::<I, 12> {
+        (44_100, 2) => Box::new(DitheredVolume::<I, 12> {
             input,
             volume,
             rng: fastrand::Rng::new(),
             quantization_error_history: RingBuffer::new(),
             filter_coefficients: &SHIBATA_441_ATH_A_1,
         }),
-        (44100, 3) => Box::new(DitheredVolume::<I, 24> {
+        (44_100, 3) => Box::new(DitheredVolume::<I, 24> {
             input,
             volume,
             rng: fastrand::Rng::new(),
             quantization_error_history: RingBuffer::new(),
             filter_coefficients: &SHIBATA_441_ATH_A_2,
         }),
-        (44100, 4) => Box::new(DitheredVolume::<I, 16> {
+        (44_100, 4) => Box::new(DitheredVolume::<I, 16> {
             input,
             volume,
             rng: fastrand::Rng::new(),
             quantization_error_history: RingBuffer::new(),
             filter_coefficients: &SHIBATA_441_ATH_A_3,
         }),
-        (44100, 5) => Box::new(DitheredVolume::<I, 20> {
+        (44_100, 5) => Box::new(DitheredVolume::<I, 20> {
             input,
             volume,
             rng: fastrand::Rng::new(),
             quantization_error_history: RingBuffer::new(),
             filter_coefficients: &SHIBATA_441_ATH_A_4,
         }),
-        (44100, 6) => Box::new(DitheredVolume::<I, 16> {
+        (44_100, 6) => Box::new(DitheredVolume::<I, 16> {
             input,
             volume,
             rng: fastrand::Rng::new(),
             quantization_error_history: RingBuffer::new(),
             filter_coefficients: &SHIBATA_441_ATH_A_5,
         }),
-        (44100, 7) => Box::new(DitheredVolume::<I, 20> {
+        (44_100, _) => Box::new(DitheredVolume::<I, 20> {
             input,
             volume,
             rng: fastrand::Rng::new(),
             quantization_error_history: RingBuffer::new(),
             filter_coefficients: &SHIBATA_441_ATH_A_6,
         }),
-        (48000, 1) => Box::new(DitheredVolume::<I, 16> {
+        (48_000, 1) => Box::new(DitheredVolume::<I, 16> {
             input,
             volume,
             rng: fastrand::Rng::new(),
             quantization_error_history: RingBuffer::new(),
             filter_coefficients: &SHIBATA_48_ATH_A_0,
         }),
-        (48000, 2) => Box::new(DitheredVolume::<I, 16> {
+        (48_000, 2) => Box::new(DitheredVolume::<I, 16> {
             input,
             volume,
             rng: fastrand::Rng::new(),
             quantization_error_history: RingBuffer::new(),
             filter_coefficients: &SHIBATA_48_ATH_A_1,
         }),
-        (48000, 3) => Box::new(DitheredVolume::<I, 16> {
+        (48_000, 3) => Box::new(DitheredVolume::<I, 16> {
             input,
             volume,
             rng: fastrand::Rng::new(),
             quantization_error_history: RingBuffer::new(),
             filter_coefficients: &SHIBATA_48_ATH_A_2,
         }),
-        (48000, 4) => Box::new(DitheredVolume::<I, 19> {
+        (48_000, 4) => Box::new(DitheredVolume::<I, 19> {
             input,
             volume,
             rng: fastrand::Rng::new(),
             quantization_error_history: RingBuffer::new(),
             filter_coefficients: &SHIBATA_48_ATH_A_3,
         }),
-        (48000, 5) => Box::new(DitheredVolume::<I, 28> {
+        (48_000, 5) => Box::new(DitheredVolume::<I, 28> {
             input,
             volume,
             rng: fastrand::Rng::new(),
             quantization_error_history: RingBuffer::new(),
             filter_coefficients: &SHIBATA_48_ATH_A_4,
         }),
-        (48000, 6) => Box::new(DitheredVolume::<I, 20> {
+        (48_000, 6) => Box::new(DitheredVolume::<I, 20> {
             input,
             volume,
             rng: fastrand::Rng::new(),
             quantization_error_history: RingBuffer::new(),
             filter_coefficients: &SHIBATA_48_ATH_A_5,
         }),
-        (48000, 7) => Box::new(DitheredVolume::<I, 28> {
+        (48_000, _) => Box::new(DitheredVolume::<I, 28> {
             input,
             volume,
             rng: fastrand::Rng::new(),
             quantization_error_history: RingBuffer::new(),
             filter_coefficients: &SHIBATA_48_ATH_A_6,
+        }),
+        (88_200, 1) => Box::new(DitheredVolume::<I, 24> {
+            input,
+            volume,
+            rng: fastrand::Rng::new(),
+            quantization_error_history: RingBuffer::new(),
+            filter_coefficients: &SHIBATA_882_ATH_A_0,
+        }),
+        (88_200, 2) => Box::new(DitheredVolume::<I, 32> {
+            input,
+            volume,
+            rng: fastrand::Rng::new(),
+            quantization_error_history: RingBuffer::new(),
+            filter_coefficients: &SHIBATA_882_ATH_A_1,
+        }),
+        (88_200, _) => Box::new(DitheredVolume::<I, 20> {
+            input,
+            volume,
+            rng: fastrand::Rng::new(),
+            quantization_error_history: RingBuffer::new(),
+            filter_coefficients: &SHIBATA_882_ATH_A_2,
+        }),
+        (96_000, 1) => Box::new(DitheredVolume::<I, 32> {
+            input,
+            volume,
+            rng: fastrand::Rng::new(),
+            quantization_error_history: RingBuffer::new(),
+            filter_coefficients: &SHIBATA_96_ATH_A_0,
+        }),
+        (96_000, 2) => Box::new(DitheredVolume::<I, 24> {
+            input,
+            volume,
+            rng: fastrand::Rng::new(),
+            quantization_error_history: RingBuffer::new(),
+            filter_coefficients: &SHIBATA_96_ATH_A_1,
+        }),
+        (96_000, _) => Box::new(DitheredVolume::<I, 31> {
+            input,
+            volume,
+            rng: fastrand::Rng::new(),
+            quantization_error_history: RingBuffer::new(),
+            filter_coefficients: &SHIBATA_96_ATH_A_2,
+        }),
+        (192_000, 1) => Box::new(DitheredVolume::<I, 20> {
+            input,
+            volume,
+            rng: fastrand::Rng::new(),
+            quantization_error_history: RingBuffer::new(),
+            filter_coefficients: &SHIBATA_192_ATH_A_0,
+        }),
+        (192_000, 2) => Box::new(DitheredVolume::<I, 43> {
+            input,
+            volume,
+            rng: fastrand::Rng::new(),
+            quantization_error_history: RingBuffer::new(),
+            filter_coefficients: &SHIBATA_192_ATH_A_1,
+        }),
+        (192_000, _) => Box::new(DitheredVolume::<I, 54> {
+            input,
+            volume,
+            rng: fastrand::Rng::new(),
+            quantization_error_history: RingBuffer::new(),
+            filter_coefficients: &SHIBATA_192_ATH_A_2,
+        }),
+        (8_000, 1) => Box::new(DitheredVolume::<I, 8> {
+            input,
+            volume,
+            rng: fastrand::Rng::new(),
+            quantization_error_history: RingBuffer::new(),
+            filter_coefficients: &SHIBATA_8_ATH_A_0,
+        }),
+        (8_000, _) => Box::new(DitheredVolume::<I, 7> {
+            input,
+            volume,
+            rng: fastrand::Rng::new(),
+            quantization_error_history: RingBuffer::new(),
+            filter_coefficients: &SHIBATA_8_ATH_A_1,
+        }),
+        (11_025, 1) => Box::new(DitheredVolume::<I, 8> {
+            input,
+            volume,
+            rng: fastrand::Rng::new(),
+            quantization_error_history: RingBuffer::new(),
+            filter_coefficients: &SHIBATA_11_ATH_A_0,
+        }),
+        (11_025, _) => Box::new(DitheredVolume::<I, 6> {
+            input,
+            volume,
+            rng: fastrand::Rng::new(),
+            quantization_error_history: RingBuffer::new(),
+            filter_coefficients: &SHIBATA_11_ATH_A_1,
+        }),
+        (22_050, 1) => Box::new(DitheredVolume::<I, 7> {
+            input,
+            volume,
+            rng: fastrand::Rng::new(),
+            quantization_error_history: RingBuffer::new(),
+            filter_coefficients: &SHIBATA_22_ATH_A_0,
+        }),
+        (22_050, _) => Box::new(DitheredVolume::<I, 12> {
+            input,
+            volume,
+            rng: fastrand::Rng::new(),
+            quantization_error_history: RingBuffer::new(),
+            filter_coefficients: &SHIBATA_22_ATH_A_1,
         }),
         _ => Box::new(DitheredVolume::<I, 0> {
             input,
@@ -234,13 +365,15 @@ where
 /// Audio source with integrated dithering, noise shaping and volume control.
 ///
 /// Processes audio samples with:
-/// * Volume scaling
+/// * Volume scaling with headroom management
 /// * TPDF dither when reducing bit depth
 /// * Noise shaping using Shibata filters (when enabled)
-/// * DC offset compensation
+/// * DC offset compensation for optimal rounding
 ///
-/// Type parameter N determines the noise shaping filter length,
-/// varies by sample rate and chosen profile.
+/// The type parameter N determines the noise shaping filter length,
+/// which varies by sample rate and chosen profile level. A larger N
+/// generally allows more sophisticated noise shaping but increases
+/// processing complexity.
 #[derive(Debug, Clone)]
 pub struct DitheredVolume<I, const N: usize> {
     /// The underlying audio source
@@ -377,13 +510,13 @@ where
     }
 }
 
-/// Module containing Shibata noise shaping filter coefficients.
+/// Shibata noise shaping filter coefficients optimized for different sample rates.
 ///
 /// These coefficients are from SSRC (Sample rate converter) by Naoki Shibata,
-/// licensed under LGPL-2.1. They are designed for optimal perceptual noise shaping
-/// based on human hearing characteristics.
+/// licensed under LGPL-2.1. They are designed for optimal perceptual noise
+/// distribution based on psychoacoustic research.
 mod coeffs {
-    /// Conservative noise shaping filter for 44.1kHz (12 coefficients)
+    /// Minimal noise shaping filter for 44.1 kHz (12 coefficients)
     pub const SHIBATA_441_ATH_A_0: [f32; 12] = [
         -0.595_437_8,
         0.002_507_873,
@@ -399,7 +532,7 @@ mod coeffs {
         -0.031_739_63,
     ];
 
-    /// Balanced noise shaping filter for 44.1kHz (12 coefficients)
+    /// Conservative noise shaping filter for 44.1 kHz (12 coefficients)
     pub const SHIBATA_441_ATH_A_1: [f32; 12] = [
         -0.998_202,
         0.599_515_4,
@@ -415,7 +548,7 @@ mod coeffs {
         6.856_103_6e-7,
     ];
 
-    /// Strong noise shaping filter for 44.1kHz (24 coefficients)
+    /// Balanced noise shaping filter for 44.1 kHz (24 coefficients) - recommended default
     pub const SHIBATA_441_ATH_A_2: [f32; 24] = [
         -1.356_863_9,
         1.225_293_5,
@@ -443,7 +576,7 @@ mod coeffs {
         4.106_017_5e-5,
     ];
 
-    /// Aggressive noise shaping filter for 44.1kHz (16 coefficients)
+    /// Aggressive noise shaping filter for 44.1 kHz (16 coefficients)
     pub const SHIBATA_441_ATH_A_3: [f32; 16] = [
         -1.771_483_5,
         2.160_381_3,
@@ -463,7 +596,7 @@ mod coeffs {
         0.004_087_016_5,
     ];
 
-    /// Very aggressive noise shaping filter for 44.1kHz (20 coefficients)
+    /// Very aggressive noise shaping filter for 44.1 kHz (20 coefficients)
     pub const SHIBATA_441_ATH_A_4: [f32; 20] = [
         -2.155_173,
         3.148_202_7,
@@ -487,7 +620,7 @@ mod coeffs {
         -0.000_932_779_86,
     ];
 
-    /// Extremely aggressive noise shaping filter for 44.1kHz (16 coefficients)
+    /// Extremely aggressive noise shaping filter for 44.1 kHz (16 coefficients)
     pub const SHIBATA_441_ATH_A_5: [f32; 16] = [
         -2.509_607_6,
         4.251_982,
@@ -507,7 +640,7 @@ mod coeffs {
         -7.114_16e-7,
     ];
 
-    /// Maximum aggression noise shaping filter for 44.1kHz (20 coefficients)
+    /// Maximum aggression noise shaping filter for 44.1 kHz (20 coefficients)
     pub const SHIBATA_441_ATH_A_6: [f32; 20] = [
         -2.826_326_6,
         5.353_436,
@@ -531,7 +664,7 @@ mod coeffs {
         -0.000_964_893_44,
     ];
 
-    /// Conservative noise shaping filter for 48kHz (16 coefficients)
+    /// Minimal noise shaping filter for 48 kHz (16 coefficients)
     pub const SHIBATA_48_ATH_A_0: [f32; 16] = [
         -0.648_154_4,
         0.000_132_923_29,
@@ -551,7 +684,7 @@ mod coeffs {
         -2.413_082e-9,
     ];
 
-    /// Balanced noise shaping filter for 48kHz (16 coefficients)
+    /// Conservative noise shaping filter for 48 kHz (16 coefficients)
     pub const SHIBATA_48_ATH_A_1: [f32; 16] = [
         -1.037_501_5,
         0.555_852_53,
@@ -571,7 +704,7 @@ mod coeffs {
         0.001_676_786_5,
     ];
 
-    /// Strong noise shaping filter for 48kHz (16 coefficients)
+    /// Balanced noise shaping filter for 48 kHz (16 coefficients) - recommended default
     pub const SHIBATA_48_ATH_A_2: [f32; 16] = [
         -1.491_957_8,
         1.308_917_9,
@@ -591,7 +724,7 @@ mod coeffs {
         0.002_505_671,
     ];
 
-    /// Aggressive noise shaping filter for 48kHz (19 coefficients)
+    /// Aggressive noise shaping filter for 48 kHz (19 coefficients)
     pub const SHIBATA_48_ATH_A_3: [f32; 19] = [
         -1.960_159_2,
         2.406_054_7,
@@ -614,7 +747,7 @@ mod coeffs {
         8.033_391e-5,
     ];
 
-    /// Very aggressive noise shaping filter for 48kHz (28 coefficients)
+    /// Very aggressive noise shaping filter for 48 kHz (28 coefficients)
     pub const SHIBATA_48_ATH_A_4: [f32; 28] = [
         -2.421_972_8,
         3.637_804_5,
@@ -646,7 +779,7 @@ mod coeffs {
         5.855_179e-5,
     ];
 
-    /// Extremely aggressive noise shaping filter for 48kHz (20 coefficients)
+    /// Extremely aggressive noise shaping filter for 48 kHz (20 coefficients)
     pub const SHIBATA_48_ATH_A_5: [f32; 20] = [
         -2.846_033_3,
         5.035_543,
@@ -670,7 +803,7 @@ mod coeffs {
         -6.372_233e-5,
     ];
 
-    /// Maximum aggression noise shaping filter for 48kHz (28 coefficients)
+    /// Maximum aggression noise shaping filter for 48 kHz (28 coefficients)
     pub const SHIBATA_48_ATH_A_6: [f32; 28] = [
         -3.260_151_6,
         6.557_569_5,
@@ -700,5 +833,393 @@ mod coeffs {
         4.772_755e-5,
         0.000_470_578_76,
         -0.000_535_220_14,
+    ];
+
+    /// Minimal noise shaping filter for 88.2 kHz (24 coefficients)
+    pub const SHIBATA_882_ATH_A_0: [f32; 24] = [
+        -0.812_750_8,
+        -1.341_541_6e-7,
+        1.400_317e-5,
+        0.027_366_659,
+        0.063_084_796,
+        0.000_411_249_64,
+        0.001_466_781_1,
+        0.003_463_642_4,
+        0.014_447_952,
+        0.050_686_4,
+        0.000_316_579_54,
+        7.608_178e-7,
+        -1.339_193_5e-6,
+        -1.108_497_8e-6,
+        -2.345_899_2e-7,
+        -7.197_047_4e-9,
+        0.000_240_975_3,
+        0.000_813_391_8,
+        0.002_707_262_8,
+        1.228_903e-5,
+        2.408_082e-6,
+        -2.651_654_8e-6,
+        -0.022_208_367,
+        -1.809_095_4e-7,
+    ];
+
+    /// Conservative noise shaping filter for 88.2 kHz (32 coefficients)
+    pub const SHIBATA_882_ATH_A_1: [f32; 32] = [
+        -1.175_952_2,
+        0.004_028_124,
+        0.470_744_13,
+        0.000_516_334_9,
+        -0.034_613_37,
+        -0.090_879_366,
+        2.494_357_4e-5,
+        0.040_280_38,
+        0.084_476_25,
+        0.020_952_063,
+        -6.424_727e-5,
+        -0.015_425_831,
+        -0.000_348_468_02,
+        0.000_214_603_9,
+        0.038_064_55,
+        0.007_522_898,
+        0.000_105_720_07,
+        0.000_888_932_85,
+        0.005_120_796,
+        0.004_709_166_5,
+        0.001_308_845_1,
+        0.001_061_635_2,
+        5.314_624e-5,
+        2.692_748_4e-5,
+        -7.112_140_3e-6,
+        -3.788_061_4e-5,
+        0.000_150_480_61,
+        0.001_454_448_3,
+        0.000_337_949_87,
+        0.000_629_115_85,
+        1.767_152e-8,
+        -1.289_341_8e-7,
+    ];
+
+    /// Strong noise shaping filter for 88.2 kHz (20 coefficients)
+    pub const SHIBATA_882_ATH_A_2: [f32; 20] = [
+        -2.075_203_7,
+        1.431_611_1,
+        4.101_862_2e-5,
+        -0.307_477_86,
+        -0.015_034_948,
+        0.002_069_007_4,
+        0.095_445_45,
+        0.017_573_366,
+        -0.001_514_684_4,
+        -0.009_715_72,
+        -0.003_230_015_7,
+        0.001_166_222_2,
+        0.012_702_43,
+        0.013_680_535,
+        0.000_326_957_12,
+        0.000_334_812_4,
+        -0.001_941_892,
+        0.006_559_844_6,
+        0.003_184_868_5,
+        0.001_185_707_6,
+    ];
+
+    /// Minimal noise shaping filter for 96 kHz (32 coefficients)
+    pub const SHIBATA_96_ATH_A_0: [f32; 32] = [
+        -0.833_627_8,
+        -4.766_351e-7,
+        5.592_720_5e-5,
+        0.000_917_676_1,
+        0.085_019_3,
+        0.000_308_640_97,
+        2.747_484_9e-5,
+        3.447_055_5e-5,
+        0.006_816_617,
+        0.005_103_240_3,
+        0.048_310_29,
+        3.419_442_5e-6,
+        3.938_738_8e-8,
+        -5.229_683e-6,
+        -2.181_512_5e-5,
+        -5.806_052_7e-6,
+        -8.897_533e-6,
+        2.879_307_4e-6,
+        1.014_230_3e-5,
+        0.000_883_434_84,
+        6.652_17e-5,
+        4.303_244_6e-7,
+        -1.557_321e-6,
+        -0.003_246_902_5,
+        -0.013_371_953,
+        -0.001_669_709_6,
+        -0.000_337_457_5,
+        -3.821_846_6e-5,
+        -8.088_396e-5,
+        -1.763_109_3e-5,
+        -4.731_759e-6,
+        -3.815_073_3e-7,
+    ];
+
+    /// Conservative noise shaping filter for 96 kHz (24 coefficients)
+    pub const SHIBATA_96_ATH_A_1: [f32; 24] = [
+        -1.226_027_3,
+        0.001_465_178_8,
+        0.485_106_86,
+        0.000_164_458_08,
+        -3.713_618_6e-5,
+        -0.114_801_206,
+        0.000_458_874_57,
+        0.001_798_167_5,
+        0.077_026_084,
+        0.040_43,
+        -4.641_455e-5,
+        -0.000_400_403_28,
+        -0.000_134_071_32,
+        -0.003_484_065_2,
+        0.000_485_598_9,
+        0.019_503_146,
+        0.017_391_57,
+        0.001_972_813_2,
+        8.821_947_4e-7,
+        0.000_649_276_2,
+        0.004_914_358,
+        0.002_303_595_2,
+        0.000_637_523_83,
+        0.000_761_010_3,
+    ];
+
+    /// Strong noise shaping filter for 96 kHz (31 coefficients)
+    pub const SHIBATA_96_ATH_A_2: [f32; 31] = [
+        -2.104_111_4,
+        1.410_141_7,
+        0.003_514_738_8,
+        -0.186_179_71,
+        -0.111_176_77,
+        0.001_362_945_1,
+        0.055_446_718,
+        0.056_859_914,
+        0.003_957_323_3,
+        -0.002_566_334_8,
+        -0.014_090_753,
+        -0.006_225_708_4,
+        0.006_539_735,
+        0.019_066_527,
+        0.003_569_579_2,
+        0.001_226_439_5,
+        -0.000_114_401_024,
+        0.000_198_087_28,
+        0.003_230_664_9,
+        0.004_677_78,
+        0.001_040_733_2,
+        0.000_973_290_94,
+        0.000_780_345_5,
+        0.000_388_532_27,
+        -4.194_729_6e-5,
+        -0.000_172_955_4,
+        0.000_593_151_9,
+        0.000_697_247_86,
+        0.000_504_023_1,
+        0.000_376_237_06,
+        0.000_174_400_05,
+    ];
+
+    /// Minimal noise shaping filter for 192 kHz (20 coefficients)
+    pub const SHIBATA_192_ATH_A_0: [f32; 20] = [
+        -0.929_867_86,
+        -2.375_700_4e-6,
+        -1.323_920_4e-6,
+        -4.533_644_6e-8,
+        1.085_569_9e-6,
+        7.519_394_7e-7,
+        0.010_574_714,
+        0.015_397_379,
+        0.007_173_464_6,
+        0.004_041_632_6,
+        0.000_315_436_2,
+        6.079_085e-6,
+        2.561_475_2e-5,
+        6.444_113_3e-6,
+        0.000_143_420_2,
+        9.988_663e-9,
+        0.000_110_015_65,
+        0.000_264_444_04,
+        0.018_070_342,
+        0.013_997_578,
+    ];
+
+    /// Conservative noise shaping filter for 192 kHz (43 coefficients)
+    pub const SHIBATA_192_ATH_A_1: [f32; 43] = [
+        -1.331_289_8,
+        -0.000_433_482_64,
+        0.004_089_822_5,
+        0.459_057_36,
+        0.000_301_990_48,
+        -2.536_581_6e-5,
+        0.000_537_581,
+        -0.000_102_941_34,
+        -0.123_569_97,
+        3.465_125e-5,
+        -0.001_193_787_9,
+        0.000_649_263_8,
+        0.008_296_027,
+        0.031_590_05,
+        0.001_986_456_6,
+        0.005_588_731_7,
+        0.004_601_458_6,
+        0.004_578_168,
+        5.671_228e-5,
+        -0.000_111_495_31,
+        -0.000_282_925_8,
+        -0.000_341_488_3,
+        -0.003_357_38,
+        -0.002_394_140_7,
+        0.000_414_986_57,
+        6.498_299_6e-5,
+        0.000_906_114_76,
+        0.004_790_787,
+        0.003_744_423_2,
+        0.000_167_221_17,
+        0.001_175_894_5,
+        0.000_812_370_5,
+        1.124_187_4e-5,
+        0.000_116_574_41,
+        0.000_147_670_6,
+        1.753_169_6e-5,
+        0.000_274_619,
+        0.000_739_063_8,
+        0.000_382_722_04,
+        0.000_682_175_16,
+        0.001_057_418_4,
+        1.561_514_8e-6,
+        2.158_449_8e-5,
+    ];
+
+    /// Strong noise shaping filter for 192 kHz (54 coefficients)
+    pub const SHIBATA_192_ATH_A_2: [f32; 54] = [
+        -2.117_482_7,
+        0.793_001_3,
+        0.588_716_5,
+        0.004_517_062,
+        2.240_059_6e-5,
+        -0.349_810_66,
+        -0.001_467_47,
+        0.035_286_05,
+        0.030_574_916,
+        0.008_099_925,
+        0.024_920_885,
+        0.010_276_389,
+        0.002_827_338_9,
+        -0.011_965_872,
+        0.001_178_735_8,
+        -0.001_587_570_1,
+        -0.001_221_955_2,
+        -0.004_150_979,
+        -0.000_236_603_75,
+        0.000_234_691_37,
+        -0.000_245_441_04,
+        0.002_350_530_4,
+        0.001_063_528,
+        0.002_193_444_6,
+        -0.000_186_019_5,
+        0.000_534_442_1,
+        0.000_564_826_8,
+        6.555_315e-5,
+        -0.000_503_513_44,
+        -0.000_697_769_34,
+        -0.000_215_430_79,
+        -0.000_558_842_85,
+        0.000_955_912_34,
+        0.000_183_239_64,
+        0.001_184_735,
+        -5.595_707_6e-5,
+        0.000_210_925_91,
+        -9.261_416e-6,
+        1.689_312_6e-5,
+        0.000_102_918_99,
+        8.705_23e-6,
+        2.189_383_8e-5,
+        -2.048_334_9e-5,
+        9.314_836e-5,
+        5.457_198_5e-5,
+        -1.039_314_8e-5,
+        4.186_463e-5,
+        -3.314_268e-5,
+        -4.641_25e-7,
+        3.169_075_7e-5,
+        -2.919_960_4e-5,
+        4.137_143e-5,
+        -3.097_004_5e-6,
+        0.000_130_819_72,
+    ];
+
+    /// Minimal noise shaping filter for 22.05 kHz (7 coefficients)
+    pub const SHIBATA_22_ATH_A_0: [f32; 7] = [
+        -0.246_904_97,
+        0.405_607_25,
+        0.178_049_43,
+        0.122_181_155,
+        0.044_338_007,
+        -7.425_220_7e-6,
+        -0.002_911_780_5,
+    ];
+
+    /// Strong noise shaping filter for 22.05 kHz (12 coefficients)
+    pub const SHIBATA_22_ATH_A_1: [f32; 12] = [
+        -0.091_535_78,
+        0.537_626_7,
+        0.366_641_07,
+        0.295_497_2,
+        0.252_406_15,
+        0.145_342_65,
+        0.120_994_06,
+        0.089_816_33,
+        0.049_367_57,
+        0.030_478_563,
+        0.012_090_771,
+        0.008_203_126_5,
+    ];
+
+    /// Minimal noise shaping filter for 8 kHz (8 coefficients)
+    pub const SHIBATA_8_ATH_A_0: [f32; 8] = [
+        0.761_596_44,
+        0.194_095_1,
+        -0.035_044_946,
+        -2.645_898e-7,
+        0.003_829_823,
+        -1.070_960_3e-6,
+        -0.004_370_146,
+        0.001_062_222_2,
+    ];
+
+    /// Strong noise shaping filter for 8 kHz (7 coefficients)
+    pub const SHIBATA_8_ATH_A_1: [f32; 7] = [
+        1.027_286_8,
+        0.570_397_44,
+        0.228_542_6,
+        0.112_836_38,
+        0.045_456_283,
+        0.015_480_343,
+        -1.829_845_8e-7,
+    ];
+
+    /// Minimal noise shaping filter for 11.025 kHz (8 coefficients)
+    pub const SHIBATA_11_ATH_A_0: [f32; 8] = [
+        0.535_948_5,
+        0.433_847_1,
+        8.257_924e-7,
+        -0.002_352_862_2,
+        -0.020_154_648,
+        0.007_696_024,
+        0.0,
+        2.101_561_4e-8,
+    ];
+
+    /// Strong noise shaping filter for 11.025 kHz (6 coefficients)
+    pub const SHIBATA_11_ATH_A_1: [f32; 6] = [
+        0.776_428,
+        0.736_269_1,
+        0.286_170_18,
+        0.149_260_58,
+        0.035_679_143,
+        0.016_192_988,
     ];
 }
