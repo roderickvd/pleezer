@@ -1637,11 +1637,7 @@ impl Player {
     ///
     /// # Returns
     ///
-    /// Returns the original volume before ramping, wrapped in `Result`.
-    ///
-    /// # Errors
-    ///
-    /// Returns error if audio device is not open.
+    /// Returns the original volume before ramping.
     ///
     /// # Implementation Note
     ///
