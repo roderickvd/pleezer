@@ -9,12 +9,14 @@ and [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/).
 
 ### Added
 - [dither] Noise shaping support for additional sample rates
+- [docs] Document that aggressive noise shaping profiles (4-7) may require volume reduction
 
 ### Changed
 - [dither] Lowered noise shaping dither amplitude
 
 ### Fixed
 - [dither] Fix truncation bias for negative values
+- [dither] Increase headroom to account for DC offset compensation
 
 ## [0.17.0] - 2025-04-23
 

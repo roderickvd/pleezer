@@ -341,7 +341,9 @@ pleezer uses psychoacoustic noise shaping to optimize audio quality:
   * Level 1: Minimal shaping
   * Level 2: Conservative shaping
   * Level 3: Balanced shaping (default)
-  * Level 4–7: Aggressive shaping — reduces in-band noise further but shifts energy >15 kHz (use with caution)
+  * Level 4–7: Aggressive shaping — reduces in-band noise further but shifts energy >15 kHz.
+    Note: These profiles may require manual volume reduction to prevent clipping due to their
+    strong error feedback.
 
 Configure noise shaping:
 ```bash

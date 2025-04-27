@@ -24,7 +24,8 @@
 //! * Level 1: Minimal/conservative shaping
 //! * Level 2: Conservative shaping
 //! * Level 3: Balanced shaping (recommended default)
-//! * Level 4-7: Aggressive shaping - reduces in-band noise but shifts energy >15 kHz
+//! * Level 4-7: Aggressive shaping - reduces in-band noise but shifts energy >15 kHz and may
+//!   require additional volume reduction to prevent clipping
 //!
 //! Supported sample rates:
 //! * 44.1 kHz - Deezer's default streaming rate
@@ -82,7 +83,9 @@ use crate::{ringbuf::RingBuffer, util::UNITY_GAIN, volume::Volume};
 ///   - 1: Minimal/conservative shaping
 ///   - 2: Conservative shaping
 ///   - 3: Balanced shaping (recommended default)
-///   - 4-7: Aggressive shaping - reduces in-band noise but shifts energy >15 kHz
+///   - 4-7: Aggressive shaping - reduces in-band noise but shifts energy >15 kHz.
+///     Note: These aggressive profiles may require manual volume reduction to prevent clipping due
+///     to their strong error feedback.
 ///
 /// # Sample Rate Support
 ///
@@ -432,7 +435,7 @@ where
 
             if let Some(quantization_step) = self.volume.quantization_step() {
                 // Apply volume attenuation, preventing clipping at full scale
-                volume = volume.min(UNITY_GAIN - quantization_step);
+                volume = volume.min(UNITY_GAIN - (1.0 + DC_COMPENSATION) * quantization_step);
 
                 // Calculate TPDF dither and DC compensation to convert truncation to rounding.
                 let dither = (self.rng.f32() - self.rng.f32())
