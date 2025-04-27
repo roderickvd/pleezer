@@ -260,13 +260,22 @@ impl Volume {
 ///
 /// # Returns
 ///
-/// The effective resolution for quantization calculation, taking into account
-/// the DAC capabilities, source material, and volume attenuation.
+/// The effective resolution for quantization calculation, taking into account:
+/// * DAC capabilities
+/// * Source material bit depth
+/// * Volume attenuation
+/// * Minimum 6-bit resolution for clean fade-outs
+///
+/// The minimum 6-bit (36dB) depth ensures:
+/// * Smooth volume transitions during fades
+/// * Steps below human Just Noticeable Difference (~0.5-1dB)
+/// * Proper dither behavior at low volumes
+/// * Prevention of quantization artifacts
 #[must_use]
 fn calculate_effective_bit_depth(dac_bits: f32, track_bits: u32, volume: f32) -> f32 {
     // Scale to the magnitude of the volume, but not exceeding the track bits
     // and preventing -infinity
-    f32::min(track_bits.to_f32_lossy(), dac_bits + volume.log2()).max(0.0)
+    f32::min(track_bits.to_f32_lossy(), dac_bits + volume.log2()).max(6.0)
 }
 
 /// Calculates the quantization step size for dithering.
