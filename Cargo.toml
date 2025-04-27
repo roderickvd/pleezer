@@ -1,6 +1,6 @@
 [package]
 name = "pleezer"
-version = "0.17.0"
+version = "0.17.1"
 authors = ["Roderick van Domburg"]
 description = "Headless Deezer Connect player"
 edition = "2024"
