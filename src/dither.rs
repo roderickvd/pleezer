@@ -423,8 +423,6 @@ where
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
-        const DC_COMPENSATION: f32 = 0.5;
-
         // When using noise shaping, the dither amplitude can be reduced by 3-6 dB,
         // reducing the noise floor while still providing full linearization.
         const NOISE_SHAPING_DITHER_AMPLITUDE: f32 = 0.5;
@@ -451,18 +449,16 @@ where
                     }
                     let shaped_signal = sample + filtered_error + dither;
 
-                    // Quantize signal as if it were to its output sample format
-                    let quantized = (shaped_signal / quantization_step + DC_COMPENSATION).trunc()
-                        * quantization_step;
-
-                    // Calculate and store new error
+                    // Quantize and calculate error
+                    let quantized = quantize(shaped_signal, quantization_step);
                     let error = quantized - shaped_signal;
                     self.quantization_error_history.push(error);
                     quantized
                 } else {
                     // No noise shaping: only apply dither
-                    sample + dither
+                    quantize(sample + dither, quantization_step)
                 };
+
                 (dithered + DC_COMPENSATION * quantization_step) * volume
             } else {
                 sample * volume
@@ -480,26 +476,32 @@ impl<I, const N: usize> Source for DitheredVolume<I, N>
 where
     I: Source,
 {
+    /// Number of samples remaining in the current processing block.
     #[inline]
     fn current_span_len(&self) -> Option<usize> {
         self.input.current_span_len()
     }
 
+    /// Channel count of the audio source.
     #[inline]
     fn channels(&self) -> ChannelCount {
         self.input.channels()
     }
 
+    /// Current sample rate in Hz.
     #[inline]
     fn sample_rate(&self) -> u32 {
         self.input.sample_rate()
     }
 
+    /// Total duration of the audio source, if known.
     #[inline]
     fn total_duration(&self) -> Option<Duration> {
         self.input.total_duration()
     }
 
+    /// Attempts to seek to the specified position.
+    /// Also resets the noise shaping error history when successful.
     #[inline]
     fn try_seek(&mut self, pos: Duration) -> Result<(), SeekError> {
         let result = self.input.try_seek(pos);
@@ -507,6 +509,38 @@ where
             self.quantization_error_history.reset();
         }
         result
+    }
+}
+
+/// DC offset compensation value (0.5) used to shift truncation points.
+/// This helps convert truncation behavior to be more like rounding,
+/// though for negative values an additional correction is still needed.
+const DC_COMPENSATION: f32 = 0.5;
+
+/// Quantizes a signal to the nearest step value, using truncation with compensation for negative values.
+///
+/// The quantization process:
+/// 1. Applies DC offset compensation (0.5) to shift the truncation points
+/// 2. Truncates to nearest lower quantization step
+/// 3. For negative signals, subtracts one quantization step to correct truncation bias
+///
+/// # Arguments
+///
+/// * `signal` - The input signal value
+/// * `quantization_step` - The size of each quantization level
+///
+/// # Returns
+///
+/// The quantized signal value, adjusted for truncation bias on negative values
+#[inline]
+#[must_use]
+fn quantize(signal: f32, quantization_step: f32) -> f32 {
+    // Quantize with DC offset compensation
+    let quantized = (signal / quantization_step + DC_COMPENSATION).trunc() * quantization_step;
+    if signal < 0.0 {
+        quantized - quantization_step
+    } else {
+        quantized
     }
 }
 

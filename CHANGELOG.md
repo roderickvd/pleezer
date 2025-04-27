@@ -13,6 +13,9 @@ and [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/).
 ### Changed
 - [dither] Lowered noise shaping dither amplitude
 
+### Fixed
+- [dither] Fix truncation bias for negative values
+
 ## [0.17.0] - 2025-04-23
 
 ### Added
