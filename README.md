@@ -336,20 +336,27 @@ Calculate optimal dither bits from DAC specifications:
 pleezer uses psychoacoustic noise shaping to optimize audio quality:
 - Pushes quantization noise into less audible frequencies
 - Uses modern Shibata coefficients for optimal noise distribution
-- Provides 7 selectable noise shaping levels:
-  * Level 0: No shaping
-  * Level 1: Minimal shaping
-  * Level 2: Conservative shaping
-  * Level 3: Balanced shaping (default)
-  * Level 4–7: Aggressive shaping — reduces in-band noise further but shifts energy >15 kHz.
-    Note: These profiles may require manual volume reduction to prevent clipping due to their
-    strong error feedback.
+- Provides several noise shaping levels:
+  * Level 0: No shaping (plain TPDF dither) - safest, recommended for podcasts
+  * Level 1: Very mild shaping (~5 dB ultrasonic rise)
+  * Level 2: Mild shaping (~8 dB rise) - recommended default for most music
+  * Level 3: Moderate shaping (~12 dB rise) - can benefit classical/jazz/ambient
+  * Level 4-7: Not recommended - excessive ultrasonic energy that may stress audio equipment
 
 Configure noise shaping:
 ```bash
-# Use noise shaping level 3 (default)
-pleezer --noise-shaping 3
+# Use noise shaping level 2 (recommended default)
+pleezer --noise-shaping 2
+
+# Use level 0 for podcasts (safest)
+pleezer --noise-shaping 0
 ```
+
+Recommendations by content type:
+- Podcasts: Level 0 (pure dither, no shaping)
+- Most music (rock, pop, metal, EDM): Level 1-2
+- Classical, jazz, ambient: Level 2-3
+- Vintage/lo-fi material: Level 0 or 1
 
 ### Memory Usage
 

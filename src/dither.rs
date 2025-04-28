@@ -20,12 +20,14 @@
 //! frequencies based on human hearing characteristics.
 //!
 //! Available noise shaping profiles:
-//! * Level 0: No shaping (plain TPDF dither)
-//! * Level 1: Minimal/conservative shaping
-//! * Level 2: Conservative shaping
-//! * Level 3: Balanced shaping (recommended default)
-//! * Level 4-7: Aggressive shaping - reduces in-band noise but shifts energy >15 kHz and may
-//!   require additional volume reduction to prevent clipping
+//! * Level 0: No shaping (plain TPDF dither) - safest, recommended for podcasts
+//! * Level 1: Very mild shaping (~5 dB ultrasonic rise)
+//! * Level 2: Mild shaping (~8 dB rise) - recommended default for most music
+//! * Level 3: Moderate shaping (~12 dB rise) - can benefit classical/jazz/ambient
+//! * Level 4-7: Aggressive shaping - not recommended due to high ultrasonic energy that may:
+//!   - Stress tweeters and headphone drivers
+//!   - Cause intermodulation distortion
+//!   - Create fatiguing sound
 //!
 //! Supported sample rates:
 //! * 44.1 kHz - Deezer's default streaming rate
@@ -79,13 +81,14 @@ use crate::{ringbuf::RingBuffer, util::UNITY_GAIN, volume::Volume};
 /// * `input` - The source audio stream
 /// * `volume` - Volume control with optional dithering parameters
 /// * `noise_shaping_profile` - Noise shaping aggressiveness level:
-///   - 0: No shaping (plain TPDF dither)
-///   - 1: Minimal/conservative shaping
-///   - 2: Conservative shaping
-///   - 3: Balanced shaping (recommended default)
-///   - 4-7: Aggressive shaping - reduces in-band noise but shifts energy >15 kHz.
-///     Note: These aggressive profiles may require manual volume reduction to prevent clipping due
-///     to their strong error feedback.
+///   - 0: No shaping (plain TPDF dither) - safest, recommended for podcasts
+///   - 1: Very mild shaping (~5 dB ultrasonic rise)
+///   - 2: Mild shaping (~8 dB rise) - recommended default for most music
+///   - 3: Moderate shaping (~12 dB rise) - can benefit classical/jazz/ambient
+///   - 4-7: Aggressive shaping - not recommended due to high ultrasonic energy that may:
+///     - Stress tweeters and headphone drivers
+///     - Cause intermodulation distortion
+///     - Create fatiguing sound
 ///
 /// # Sample Rate Support
 ///

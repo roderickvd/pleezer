@@ -176,19 +176,20 @@ struct Args {
 
     /// Set noise shaping level
     ///
-    /// Level 3 (default) offers balanced audible noise reduction without excessive ultrasonic
-    /// energy.
+    /// Level 2 (default) offers mild noise shaping (~8 dB ultrasonic rise) suitable for most music.
     ///
-    /// * 0: Flat TPDF dither (no noise shaping)
-    /// * 1: Minimal shaping
-    /// * 2: Conservative shaping
-    /// * 3: Balanced shaping (default)
-    /// * 4–7: Aggressive shaping — reduces in-band noise further but shifts energy >15 kHz (use
-    ///   with caution)
+    /// * 0: No shaping (plain TPDF dither) - safest, recommended for podcasts
+    /// * 1: Very mild shaping (~5 dB ultrasonic rise)
+    /// * 2: Mild shaping (~8 dB rise) - recommended default for most music
+    /// * 3: Moderate shaping (~12 dB rise) - can benefit classical/jazz/ambient
+    /// * 4-7: Aggressive shaping - not recommended due to high ultrasonic energy that may:
+    ///   - Stress tweeters and headphone drivers
+    ///   - Cause intermodulation distortion
+    ///   - Create fatiguing sound
     #[arg(
         long,
         value_parser = clap::value_parser!(u8).range(0..=7),
-        default_value_t = 3,
+        default_value_t = 2,
         env = "PLEEZER_NOISE_SHAPING",
         verbatim_doc_comment
     )]
