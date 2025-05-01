@@ -25,13 +25,14 @@
 //!    * AAC: ADTS stream parsing
 //!    * WAV: PCM decoding
 //! 3. Volume normalization (optional)
-//! 4. Logarithmic volume control
-//! 5. Dithering and noise shaping:
+//! 4. Equal-loudness compensation (ISO 226:2013)
+//! 5. Logarithmic volume control
+//! 6. Dithering and noise shaping:
 //!    * TPDF dither with optimal noise characteristics
 //!    * Shibata noise shaping filters (when enabled)
 //!    * Automatic headroom management
-//! 6. Fade-out processing for smooth transitions
-//! 7. Audio device output
+//! 7. Fade-out processing for smooth transitions
+//! 8. Audio device output
 //!
 //! # Features
 //!
@@ -955,11 +956,14 @@ impl Player {
                 }
             }
 
+            let lufs_target = Some(self.gain_target_db.into());
+
             let rx = if 2.0 * difference.abs() <= f32::EPSILON * difference.abs() {
                 // No normalization needed, just append the decoder.
                 sources.append_with_signal(dither::dithered_volume(
                     decoder,
                     self.dithered_volume.clone(),
+                    lufs_target,
                     self.noise_shaping,
                 ))
             } else {
@@ -975,6 +979,7 @@ impl Player {
                     sources.append_with_signal(dither::dithered_volume(
                         attenuated,
                         self.dithered_volume.clone(),
+                        lufs_target,
                         self.noise_shaping,
                     ))
                 } else {
@@ -995,6 +1000,7 @@ impl Player {
                     sources.append_with_signal(dither::dithered_volume(
                         normalized,
                         self.dithered_volume.clone(),
+                        lufs_target,
                         self.noise_shaping,
                     ))
                 }

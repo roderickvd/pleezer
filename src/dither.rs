@@ -66,7 +66,7 @@ use coeffs::{
 use cpal::ChannelCount;
 use rodio::{Source, source::SeekError};
 
-use crate::{ringbuf::RingBuffer, util::UNITY_GAIN, volume::Volume};
+use crate::{loudness::EqualLoudnessFilter, ringbuf::RingBuffer, util::UNITY_GAIN, volume::Volume};
 
 /// Creates a new audio source with dithered volume control and optional noise shaping.
 ///
@@ -74,12 +74,14 @@ use crate::{ringbuf::RingBuffer, util::UNITY_GAIN, volume::Volume};
 /// * TPDF (triangular) dithering for optimal noise characteristics
 /// * Volume-aware dither scaling to preserve dynamic range
 /// * Shibata noise shaping for psychoacoustic optimization
+/// * Equal loudness compensation based on ISO 226:2013
 /// * DC offset compensation to convert truncation to rounding
 ///
 /// # Arguments
 ///
 /// * `input` - The source audio stream
 /// * `volume` - Volume control with optional dithering parameters
+/// * `lufs_target` - Optional LUFS target for equal loudness compensation
 /// * `noise_shaping_profile` - Noise shaping aggressiveness level:
 ///   - 0: No shaping (plain TPDF dither) - safest, recommended for podcasts
 ///   - 1: Very mild shaping (~5 dB ultrasonic rise)
@@ -118,6 +120,7 @@ use crate::{ringbuf::RingBuffer, util::UNITY_GAIN, volume::Volume};
 pub fn dithered_volume<I>(
     input: I,
     volume: Arc<Volume>,
+    lufs_target: Option<f32>,
     noise_shaping_profile: u8,
 ) -> Box<dyn Source<Item = I::Item> + Send>
 where
@@ -147,10 +150,14 @@ where
         }
     }
 
+    let equal_loudness =
+        lufs_target.map(|target| EqualLoudnessFilter::new(sample_rate, target, volume.volume()));
+
     match (sample_rate, noise_shaping_profile) {
         (_, 0) => Box::new(DitheredVolume::<I, 0> {
             input,
             volume,
+            equal_loudness,
             rng: fastrand::Rng::new(),
             quantization_error_history: RingBuffer::new(),
             filter_coefficients: &[],
@@ -158,6 +165,7 @@ where
         (44_100, 1) => Box::new(DitheredVolume::<I, 12> {
             input,
             volume,
+            equal_loudness,
             rng: fastrand::Rng::new(),
             quantization_error_history: RingBuffer::new(),
             filter_coefficients: &SHIBATA_441_ATH_A_0,
@@ -165,6 +173,7 @@ where
         (44_100, 2) => Box::new(DitheredVolume::<I, 12> {
             input,
             volume,
+            equal_loudness,
             rng: fastrand::Rng::new(),
             quantization_error_history: RingBuffer::new(),
             filter_coefficients: &SHIBATA_441_ATH_A_1,
@@ -172,6 +181,7 @@ where
         (44_100, 3) => Box::new(DitheredVolume::<I, 24> {
             input,
             volume,
+            equal_loudness,
             rng: fastrand::Rng::new(),
             quantization_error_history: RingBuffer::new(),
             filter_coefficients: &SHIBATA_441_ATH_A_2,
@@ -179,6 +189,7 @@ where
         (44_100, 4) => Box::new(DitheredVolume::<I, 16> {
             input,
             volume,
+            equal_loudness,
             rng: fastrand::Rng::new(),
             quantization_error_history: RingBuffer::new(),
             filter_coefficients: &SHIBATA_441_ATH_A_3,
@@ -186,6 +197,7 @@ where
         (44_100, 5) => Box::new(DitheredVolume::<I, 20> {
             input,
             volume,
+            equal_loudness,
             rng: fastrand::Rng::new(),
             quantization_error_history: RingBuffer::new(),
             filter_coefficients: &SHIBATA_441_ATH_A_4,
@@ -193,6 +205,7 @@ where
         (44_100, 6) => Box::new(DitheredVolume::<I, 16> {
             input,
             volume,
+            equal_loudness,
             rng: fastrand::Rng::new(),
             quantization_error_history: RingBuffer::new(),
             filter_coefficients: &SHIBATA_441_ATH_A_5,
@@ -200,6 +213,7 @@ where
         (44_100, _) => Box::new(DitheredVolume::<I, 20> {
             input,
             volume,
+            equal_loudness,
             rng: fastrand::Rng::new(),
             quantization_error_history: RingBuffer::new(),
             filter_coefficients: &SHIBATA_441_ATH_A_6,
@@ -207,6 +221,7 @@ where
         (48_000, 1) => Box::new(DitheredVolume::<I, 16> {
             input,
             volume,
+            equal_loudness,
             rng: fastrand::Rng::new(),
             quantization_error_history: RingBuffer::new(),
             filter_coefficients: &SHIBATA_48_ATH_A_0,
@@ -214,6 +229,7 @@ where
         (48_000, 2) => Box::new(DitheredVolume::<I, 16> {
             input,
             volume,
+            equal_loudness,
             rng: fastrand::Rng::new(),
             quantization_error_history: RingBuffer::new(),
             filter_coefficients: &SHIBATA_48_ATH_A_1,
@@ -221,6 +237,7 @@ where
         (48_000, 3) => Box::new(DitheredVolume::<I, 16> {
             input,
             volume,
+            equal_loudness,
             rng: fastrand::Rng::new(),
             quantization_error_history: RingBuffer::new(),
             filter_coefficients: &SHIBATA_48_ATH_A_2,
@@ -228,6 +245,7 @@ where
         (48_000, 4) => Box::new(DitheredVolume::<I, 19> {
             input,
             volume,
+            equal_loudness,
             rng: fastrand::Rng::new(),
             quantization_error_history: RingBuffer::new(),
             filter_coefficients: &SHIBATA_48_ATH_A_3,
@@ -235,6 +253,7 @@ where
         (48_000, 5) => Box::new(DitheredVolume::<I, 28> {
             input,
             volume,
+            equal_loudness,
             rng: fastrand::Rng::new(),
             quantization_error_history: RingBuffer::new(),
             filter_coefficients: &SHIBATA_48_ATH_A_4,
@@ -242,6 +261,7 @@ where
         (48_000, 6) => Box::new(DitheredVolume::<I, 20> {
             input,
             volume,
+            equal_loudness,
             rng: fastrand::Rng::new(),
             quantization_error_history: RingBuffer::new(),
             filter_coefficients: &SHIBATA_48_ATH_A_5,
@@ -249,6 +269,7 @@ where
         (48_000, _) => Box::new(DitheredVolume::<I, 28> {
             input,
             volume,
+            equal_loudness,
             rng: fastrand::Rng::new(),
             quantization_error_history: RingBuffer::new(),
             filter_coefficients: &SHIBATA_48_ATH_A_6,
@@ -256,6 +277,7 @@ where
         (88_200, 1) => Box::new(DitheredVolume::<I, 24> {
             input,
             volume,
+            equal_loudness,
             rng: fastrand::Rng::new(),
             quantization_error_history: RingBuffer::new(),
             filter_coefficients: &SHIBATA_882_ATH_A_0,
@@ -263,6 +285,7 @@ where
         (88_200, 2) => Box::new(DitheredVolume::<I, 32> {
             input,
             volume,
+            equal_loudness,
             rng: fastrand::Rng::new(),
             quantization_error_history: RingBuffer::new(),
             filter_coefficients: &SHIBATA_882_ATH_A_1,
@@ -270,6 +293,7 @@ where
         (88_200, _) => Box::new(DitheredVolume::<I, 20> {
             input,
             volume,
+            equal_loudness,
             rng: fastrand::Rng::new(),
             quantization_error_history: RingBuffer::new(),
             filter_coefficients: &SHIBATA_882_ATH_A_2,
@@ -277,6 +301,7 @@ where
         (96_000, 1) => Box::new(DitheredVolume::<I, 32> {
             input,
             volume,
+            equal_loudness,
             rng: fastrand::Rng::new(),
             quantization_error_history: RingBuffer::new(),
             filter_coefficients: &SHIBATA_96_ATH_A_0,
@@ -284,6 +309,7 @@ where
         (96_000, 2) => Box::new(DitheredVolume::<I, 24> {
             input,
             volume,
+            equal_loudness,
             rng: fastrand::Rng::new(),
             quantization_error_history: RingBuffer::new(),
             filter_coefficients: &SHIBATA_96_ATH_A_1,
@@ -291,6 +317,7 @@ where
         (96_000, _) => Box::new(DitheredVolume::<I, 31> {
             input,
             volume,
+            equal_loudness,
             rng: fastrand::Rng::new(),
             quantization_error_history: RingBuffer::new(),
             filter_coefficients: &SHIBATA_96_ATH_A_2,
@@ -298,6 +325,7 @@ where
         (192_000, 1) => Box::new(DitheredVolume::<I, 20> {
             input,
             volume,
+            equal_loudness,
             rng: fastrand::Rng::new(),
             quantization_error_history: RingBuffer::new(),
             filter_coefficients: &SHIBATA_192_ATH_A_0,
@@ -305,6 +333,7 @@ where
         (192_000, 2) => Box::new(DitheredVolume::<I, 43> {
             input,
             volume,
+            equal_loudness,
             rng: fastrand::Rng::new(),
             quantization_error_history: RingBuffer::new(),
             filter_coefficients: &SHIBATA_192_ATH_A_1,
@@ -312,6 +341,7 @@ where
         (192_000, _) => Box::new(DitheredVolume::<I, 54> {
             input,
             volume,
+            equal_loudness,
             rng: fastrand::Rng::new(),
             quantization_error_history: RingBuffer::new(),
             filter_coefficients: &SHIBATA_192_ATH_A_2,
@@ -319,6 +349,7 @@ where
         (8_000, 1) => Box::new(DitheredVolume::<I, 8> {
             input,
             volume,
+            equal_loudness,
             rng: fastrand::Rng::new(),
             quantization_error_history: RingBuffer::new(),
             filter_coefficients: &SHIBATA_8_ATH_A_0,
@@ -326,6 +357,7 @@ where
         (8_000, _) => Box::new(DitheredVolume::<I, 7> {
             input,
             volume,
+            equal_loudness,
             rng: fastrand::Rng::new(),
             quantization_error_history: RingBuffer::new(),
             filter_coefficients: &SHIBATA_8_ATH_A_1,
@@ -333,6 +365,7 @@ where
         (11_025, 1) => Box::new(DitheredVolume::<I, 8> {
             input,
             volume,
+            equal_loudness,
             rng: fastrand::Rng::new(),
             quantization_error_history: RingBuffer::new(),
             filter_coefficients: &SHIBATA_11_ATH_A_0,
@@ -340,6 +373,7 @@ where
         (11_025, _) => Box::new(DitheredVolume::<I, 6> {
             input,
             volume,
+            equal_loudness,
             rng: fastrand::Rng::new(),
             quantization_error_history: RingBuffer::new(),
             filter_coefficients: &SHIBATA_11_ATH_A_1,
@@ -347,6 +381,7 @@ where
         (22_050, 1) => Box::new(DitheredVolume::<I, 7> {
             input,
             volume,
+            equal_loudness,
             rng: fastrand::Rng::new(),
             quantization_error_history: RingBuffer::new(),
             filter_coefficients: &SHIBATA_22_ATH_A_0,
@@ -354,6 +389,7 @@ where
         (22_050, _) => Box::new(DitheredVolume::<I, 12> {
             input,
             volume,
+            equal_loudness,
             rng: fastrand::Rng::new(),
             quantization_error_history: RingBuffer::new(),
             filter_coefficients: &SHIBATA_22_ATH_A_1,
@@ -361,6 +397,7 @@ where
         _ => Box::new(DitheredVolume::<I, 0> {
             input,
             volume,
+            equal_loudness,
             rng: fastrand::Rng::new(),
             quantization_error_history: RingBuffer::new(),
             filter_coefficients: &[],
@@ -396,6 +433,9 @@ pub struct DitheredVolume<I, const N: usize> {
 
     /// Shibata filter coefficients for the current sample rate and profile
     filter_coefficients: &'static [f32; N],
+
+    /// Optional equal loudness compensation filter
+    equal_loudness: Option<EqualLoudnessFilter>,
 }
 
 impl<I, const N: usize> DitheredVolume<I, N>
@@ -429,12 +469,19 @@ where
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
-        // When using noise shaping, the dither amplitude can be reduced by 3-6 dB,
-        // reducing the noise floor while still providing full linearization.
+        /// Dither amplitude scaling factor when noise shaping is enabled.
+        /// Reduced by 6 dB compared to plain dithering since noise shaping
+        /// provides additional linearization.
         const NOISE_SHAPING_DITHER_AMPLITUDE: f32 = 0.5;
 
-        self.input.next().map(|sample| {
+        self.input.next().map(|mut sample| {
             let mut volume = self.volume.volume();
+
+            // Apply equal loudness compensation if enabled
+            if let Some(equal_loudness) = self.equal_loudness.as_mut() {
+                equal_loudness.update_volume(volume);
+                sample = equal_loudness.process(sample);
+            }
 
             if let Some(quantization_step) = self.volume.quantization_step() {
                 // Apply volume attenuation, preventing clipping at full scale
@@ -465,8 +512,18 @@ where
                     quantize(sample + dither, quantization_step)
                 };
 
-                (dithered + DC_COMPENSATION * quantization_step) * volume
+                if self.equal_loudness.is_some() {
+                    // When using equal loudness, only apply volume to the DC compensation
+                    dithered + (DC_COMPENSATION * quantization_step * volume)
+                } else {
+                    // Without equal loudness, apply volume to both
+                    (dithered + DC_COMPENSATION * quantization_step) * volume
+                }
+            } else if self.equal_loudness.is_some() {
+                // Equal loudness has already applied volume
+                sample
             } else {
+                // Apply volume directly
                 sample * volume
             }
         })

@@ -7,6 +7,9 @@ and [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/).
 
 ## [Unreleased]
 
+### Added
+- [loudness] Equal-loudness compensation based on ISO 226:2013 standard
+
 ### Changed
 - [dither] Lower default noise shaping profile
 

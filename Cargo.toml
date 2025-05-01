@@ -52,6 +52,7 @@ jack = ["cpal/jack"]
 
 [dependencies]
 base64 = "0.22"
+biquad = "0.5"
 blowfish = "0.9"
 cbc = "0.1"
 cookie_store = { version = "0.21", default-features = false }

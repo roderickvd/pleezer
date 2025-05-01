@@ -28,6 +28,7 @@
 //!   - [`decrypt`]: Handles encrypted content
 //!   - [`decoder`]: Audio format decoding
 //!   - [`normalize`]: Audio leveling and dynamic range control
+//!   - [`loudness`]: Equal-loudness compensation (ISO 226:2013)
 //!   - [`dither`]: High-quality dithering and noise shaping
 //!   - [`volume`]: Volume control with dithering integration
 //!   - [`player`]: Controls audio playback and queues
@@ -114,6 +115,7 @@ pub mod error;
 pub mod events;
 pub mod gateway;
 pub mod http;
+pub mod loudness;
 pub mod normalize;
 pub mod player;
 pub mod protocol;
