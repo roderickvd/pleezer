@@ -122,6 +122,7 @@ pub enum Credentials {
 ///     // ... other settings ...
 /// };
 /// ```
+#[expect(clippy::struct_excessive_bools)]
 #[derive(Clone, PartialEq, PartialOrd, Debug)]
 pub struct Config {
     /// The name of the application.
@@ -163,6 +164,9 @@ pub struct Config {
     ///
     /// By default this is `false`.
     pub normalization: bool,
+
+    /// Whether to apply equal-loudness compensation.
+    pub loudness: bool,
 
     /// Initial volume level.
     ///

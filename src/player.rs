@@ -9,6 +9,9 @@
 //!   - Fallback: `ReplayGain` metadata from external files (e.g., podcasts)
 //!   - Target: -15 LUFS with headroom protection
 //!   - Dynamic range compression for loud content
+//! * Equal-loudness compensation (ISO 226:2013)
+//!   - Matches human hearing sensitivity
+//!   - Volume-dependent processing
 //! * High-quality dithering and noise shaping
 //!   - TPDF dither with DC offset compensation
 //!   - Psychoacoustic noise shaping (Shibata filters)
@@ -181,6 +184,13 @@ pub struct Player {
     /// Whether volume normalization is enabled.
     normalization: bool,
 
+    /// Whether equal-loudness compensation is enabled.
+    ///
+    /// When enabled, applies frequency-dependent gain based on
+    /// ISO 226:2013 equal-loudness contours to compensate for
+    /// human hearing sensitivity variations.
+    loudness: bool,
+
     /// Target gain for volume normalization in dB.
     ///
     /// Used to calculate normalization ratios.
@@ -333,6 +343,7 @@ impl Player {
             media_url: MediaUrl::default().into(),
             repeat_mode: RepeatMode::default(),
             normalization: config.normalization,
+            loudness: config.loudness,
             gain_target_db,
             volume,
             dithered_volume,
@@ -956,7 +967,11 @@ impl Player {
                 }
             }
 
-            let lufs_target = Some(self.gain_target_db.into());
+            let lufs_target = if self.loudness {
+                Some(self.gain_target_db.into())
+            } else {
+                None
+            };
 
             let rx = if 2.0 * difference.abs() <= f32::EPSILON * difference.abs() {
                 // No normalization needed, just append the decoder.

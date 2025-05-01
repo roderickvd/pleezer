@@ -304,6 +304,23 @@ This approach ensures:
 - No unnecessary processing on tracks that only need attenuation
 - Maximum dynamic range preservation
 
+#### Loudness Compensation
+
+Enable psychoacoustic loudness compensation:
+```bash
+pleezer --loudness
+```
+
+Compensates for how human hearing perceives different frequencies, especially at lower volumes:
+- Applies frequency-dependent gain based on ISO 226:2013 research
+- Maintains tonal balance across volume levels
+- Particularly beneficial for quiet listening
+- Automatically scales with volume setting
+
+The compensation effect:
+- Strong at low volumes where hearing sensitivity varies most
+- Gradually reduces as volume increases
+
 #### Dithering
 
 pleezer improves audio quality through:

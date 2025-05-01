@@ -150,6 +150,13 @@ struct Args {
     #[arg(long, default_value_t = false, env = "PLEEZER_NORMALIZE_VOLUME")]
     normalize_volume: bool,
 
+    /// Enable loudness compensation (ISO 226:2013)
+    ///
+    /// Applies frequency-dependent gain to match human hearing sensitivity.
+    /// Particularly useful for low-volume listening.
+    #[arg(long, default_value_t = false, env = "PLEEZER_LOUDNESS")]
+    loudness: bool,
+
     /// Set initial volume level (0-100)
     ///
     /// Applied when no volume is reported by Deezer client or when reported as maximum.
@@ -518,6 +525,7 @@ async fn run(args: Args) -> Result<ShutdownSignal> {
             interruptions: !args.no_interruptions,
 
             normalization: args.normalize_volume,
+            loudness: args.loudness,
             initial_volume: args
                 .initial_volume
                 .map(|volume| Percentage::from_percent(volume as f32)),
