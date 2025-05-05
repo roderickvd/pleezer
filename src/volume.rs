@@ -46,6 +46,7 @@
 use std::sync::atomic::{AtomicU32, Ordering};
 
 use crate::{
+    dither::DC_COMPENSATION,
     track::DEFAULT_BITS_PER_SAMPLE,
     util::{ToF32, UNITY_GAIN},
 };
@@ -95,18 +96,18 @@ impl Default for Volume {
     /// * Dithering disabled
     fn default() -> Self {
         Self {
-            volume: AtomicU32::new(Self::DEFAULT_VOLUME.to_bits()),
+            volume: AtomicU32::new(DEFAULT_VOLUME.to_bits()),
             dither: None,
         }
     }
 }
 
-impl Volume {
-    /// Default volume level.
-    ///
-    /// Constant value of 100% (1.0) used as initial volume setting.
-    pub const DEFAULT_VOLUME: f32 = UNITY_GAIN;
+/// Default volume level.
+///
+/// Constant value of 100% (1.0) used as initial volume setting.
+pub const DEFAULT_VOLUME: f32 = UNITY_GAIN;
 
+impl Volume {
     /// Creates a new volume control with optional dithering support.
     ///
     /// # Arguments
@@ -143,7 +144,7 @@ impl Volume {
     /// * DAC bit depth
     /// * Source material bit depth
     ///
-    /// Returns None if dithering is disabled.
+    /// Returns `None` if dithering is disabled.
     #[must_use]
     pub fn quantization_step(&self) -> Option<f32> {
         self.dither
@@ -177,18 +178,22 @@ impl Volume {
     /// * Quantization step size
     /// * Dithering parameters
     pub fn set_volume(&self, volume: f32) -> f32 {
+        let mut new = volume;
         if let Some(dither) = self.dither.as_ref() {
             let quantization_step =
                 calculate_quantization_step(dither.dac_bit_depth, self.track_bit_depth(), volume);
             dither
                 .quantization_step
                 .store(quantization_step.to_bits(), Ordering::Relaxed);
+
+            // Preventing clipping at full scale
+            new = new.min(UNITY_GAIN - (1.0 + DC_COMPENSATION) * quantization_step);
         }
 
         // set volume last: in case of low volume before, dithering would be at a fairly
         // low significant bits, which could lead to audible artifacts if the volume were
         // raised before (race condition)
-        let previous = self.volume.swap(volume.to_bits(), Ordering::Relaxed);
+        let previous = self.volume.swap(new.to_bits(), Ordering::Relaxed);
         f32::from_bits(previous)
     }
 
@@ -293,6 +298,6 @@ fn calculate_effective_bit_depth(dac_bits: f32, track_bits: u32, volume: f32) ->
 fn calculate_quantization_step(dac_bits: f32, track_bits: u32, volume: f32) -> f32 {
     1.0 / f32::powf(
         2.0,
-        calculate_effective_bit_depth(dac_bits, track_bits, volume),
+        calculate_effective_bit_depth(dac_bits, track_bits, volume) - 1.0,
     )
 }
