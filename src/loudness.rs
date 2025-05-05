@@ -27,8 +27,6 @@ use std::f32::consts::SQRT_2;
 use biquad::{Biquad, Coefficients, DirectForm1, Q_BUTTERWORTH_F32, ToHertz, Type};
 use rodio::SampleRate;
 
-use crate::util::{self};
-
 /// ISO 226:2013 standard frequencies in Hz
 const FREQUENCIES: &[f32] = &[
     20.0, 25.0, 31.5, 40.0, 50.0, 63.0, 80.0, 100.0, 125.0, 160.0, 200.0, 250.0, 315.0, 400.0,
@@ -142,16 +140,34 @@ impl EqualLoudnessFilter {
     /// * `volume` - Initial volume setting (0.0 to 1.0)
     #[must_use]
     pub fn new(sample_rate: SampleRate, lufs_target: f32, volume: f32) -> Self {
-        let filters = std::array::from_fn(|band| {
-            Self::create_band_filter(sample_rate, lufs_target, band, volume)
-        });
+        let phon = Self::calculate_phon(volume, lufs_target);
 
-        Self {
-            filters,
-            volume,
+        let mut filter = Self {
+            filters: [(); NUM_BANDS].map(|()| {
+                DirectForm1::<f32>::new(
+                    Coefficients::<f32>::from_params(
+                        Type::PeakingEQ(0.0),
+                        sample_rate.hz(),
+                        1000.0.hz(),
+                        1.0,
+                    )
+                    .expect("failed to create filter coefficients"),
+                )
+            }),
             sample_rate,
             lufs_target,
-        }
+            volume,
+        };
+
+        filter.filters = std::array::from_fn(|band| filter.create_filters_for_phon(band, phon));
+        filter
+    }
+
+    /// Calculates phon level from volume and LUFS target
+    fn calculate_phon(volume: f32, lufs_target: f32) -> f32 {
+        // Map volume to phon level for equal-loudness curve selection
+        let listening_level = REFERENCE_SPL + lufs_target;
+        (listening_level * volume).clamp(0.0, 100.0)
     }
 
     /// Updates filter coefficients when volume changes
@@ -160,9 +176,8 @@ impl EqualLoudnessFilter {
     /// proper equal-loudness compensation.
     pub fn update_volume(&mut self, volume: f32) {
         if 2.0 * (volume - self.volume).abs() > f32::EPSILON * (volume.abs() + self.volume.abs()) {
-            self.filters = std::array::from_fn(|band| {
-                Self::create_band_filter(self.sample_rate, self.lufs_target, band, volume)
-            });
+            let phon = Self::calculate_phon(volume, self.lufs_target);
+            self.filters = std::array::from_fn(|band| self.create_filters_for_phon(band, phon));
             self.volume = volume;
         }
     }
@@ -179,42 +194,30 @@ impl EqualLoudnessFilter {
         output
     }
 
-    /// Creates a biquad filter for a specific frequency band
-    ///
-    /// # Arguments
-    ///
-    /// * `sample_rate` - The audio sample rate
-    /// * `lufs_target` - Target loudness level in LUFS
-    /// * `band` - Index of the frequency band (0-5)
-    /// * `volume` - Current volume level for gain calculation
-    fn create_band_filter(
-        sample_rate: SampleRate,
-        lufs_target: f32,
-        band: usize,
-        volume: f32,
-    ) -> DirectForm1<f32> {
+    fn create_filters_for_phon(&self, band: usize, phon: f32) -> DirectForm1<f32> {
         let freq = BAND_FREQUENCIES[band];
         let q = BAND_Q[band];
 
-        // Calculate gain using same logic as before but without self
-        let listening_level = REFERENCE_SPL + lufs_target;
-        let volume_db = util::ratio_to_db(volume);
-        let phon = volume_db + listening_level;
+        // Get the response curves at our current and reference listening levels
+        let target_response = calculate_target_spl(freq, phon);
+        let reference_response = calculate_target_spl(freq, REFERENCE_SPL + self.lufs_target);
 
-        let target_spl = calculate_target_spl(freq, phon);
-        let reference_spl = calculate_target_spl(freq, listening_level);
-        let gain_db = target_spl - reference_spl;
+        // Calculate relative gain needed to match the equal-loudness contour shape,
+        // not the absolute level
+        let shape_difference =
+            (target_response - reference_response) - (phon - (REFERENCE_SPL + self.lufs_target));
 
         let filter_type = if band == 0 {
-            Type::LowShelf(gain_db)
+            Type::LowShelf(shape_difference)
         } else if band == NUM_BANDS - 1 {
-            Type::HighShelf(gain_db)
+            Type::HighShelf(shape_difference)
         } else {
-            Type::PeakingEQ(gain_db)
+            Type::PeakingEQ(shape_difference)
         };
 
         let coeffs =
-            Coefficients::<f32>::from_params(filter_type, sample_rate.hz(), freq.hz(), q).unwrap();
+            Coefficients::<f32>::from_params(filter_type, self.sample_rate.hz(), freq.hz(), q)
+                .expect("failed to create filter coefficients");
 
         DirectForm1::<f32>::new(coeffs)
     }
@@ -223,24 +226,7 @@ impl EqualLoudnessFilter {
     ///
     /// Useful when seeking in audio or when filter state becomes invalid.
     pub fn reset(&mut self) {
-        self.filters = std::array::from_fn(|band| {
-            Self::create_band_filter(self.sample_rate, self.lufs_target, band, self.volume)
-        });
+        let phon = Self::calculate_phon(self.volume, self.lufs_target);
+        self.filters = std::array::from_fn(|band| self.create_filters_for_phon(band, phon));
     }
-}
-
-/// Converts a linear volume ratio to phons using reference SPL
-///
-/// # Arguments
-///
-/// * `volume` - Volume level (0.0 to 1.0)
-/// * `lufs_target` - Target loudness level in LUFS
-///
-/// # Returns
-///
-/// Loudness level in phons
-#[must_use]
-#[inline]
-pub fn volume_to_phon(volume: f32, lufs_target: f32) -> f32 {
-    util::ratio_to_db(volume) + REFERENCE_SPL + lufs_target
 }

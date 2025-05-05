@@ -55,7 +55,7 @@
 //! licensed under LGPL-2.1. They are carefully designed for optimal perceptual noise
 //! distribution based on psychoacoustic research.
 
-use std::{sync::Arc, time::Duration};
+use std::{f32, sync::Arc, time::Duration};
 
 use coeffs::{
     SHIBATA_8_ATH_A_0, SHIBATA_8_ATH_A_1, SHIBATA_11_ATH_A_0, SHIBATA_11_ATH_A_1,
@@ -66,7 +66,7 @@ use coeffs::{
 use cpal::ChannelCount;
 use rodio::{Source, source::SeekError};
 
-use crate::{loudness::EqualLoudnessFilter, ringbuf::RingBuffer, util::UNITY_GAIN, volume::Volume};
+use crate::{loudness::EqualLoudnessFilter, ringbuf::RingBuffer, volume::Volume};
 
 /// Creates a new audio source with dithered volume control and optional noise shaping.
 ///
@@ -475,57 +475,43 @@ where
         const NOISE_SHAPING_DITHER_AMPLITUDE: f32 = 0.5;
 
         self.input.next().map(|mut sample| {
-            let mut volume = self.volume.volume();
+            let volume = self.volume.volume();
 
-            // Apply equal loudness compensation if enabled
+            // Apply equal loudness compensation if enabled, without volume scaling
             if let Some(equal_loudness) = self.equal_loudness.as_mut() {
                 equal_loudness.update_volume(volume);
                 sample = equal_loudness.process(sample);
             }
 
             if let Some(quantization_step) = self.volume.quantization_step() {
-                // Apply volume attenuation, preventing clipping at full scale
-                volume = volume.min(UNITY_GAIN - (1.0 + DC_COMPENSATION) * quantization_step);
+                // Calculate TPDF dither at the right bit depth
+                let dither = (self.rng.f32() - self.rng.f32()) * quantization_step;
 
-                // Calculate TPDF dither and DC compensation to convert truncation to rounding.
-                let dither = (self.rng.f32() - self.rng.f32())
-                    * NOISE_SHAPING_DITHER_AMPLITUDE
-                    * quantization_step;
-
-                let dithered = if N > 0 {
-                    // Noise shaping: apply filtered error feedback from previous samples to
-                    // pre-compensate for quantization
+                // Add noise shaping if enabled
+                let shaped_signal = if N > 0 {
                     let mut filtered_error = 0.0;
                     for i in 0..N {
                         filtered_error +=
                             self.filter_coefficients[i] * self.quantization_error_history.get(i);
                     }
-                    let shaped_signal = sample + filtered_error + dither;
-
-                    // Quantize and calculate error
-                    let quantized = quantize(shaped_signal, quantization_step);
-                    let error = quantized - shaped_signal;
-                    self.quantization_error_history.push(error);
-                    quantized
+                    sample + filtered_error + NOISE_SHAPING_DITHER_AMPLITUDE * dither
                 } else {
-                    // No noise shaping: only apply dither
-                    quantize(sample + dither, quantization_step)
+                    sample + dither
                 };
 
-                if self.equal_loudness.is_some() {
-                    // When using equal loudness, only apply volume to the DC compensation
-                    dithered + (DC_COMPENSATION * quantization_step * volume)
-                } else {
-                    // Without equal loudness, apply volume to both
-                    (dithered + DC_COMPENSATION * quantization_step) * volume
+                // Quantize and track error for noise shaping
+                let dithered = quantize(shaped_signal, quantization_step);
+                if N > 0 {
+                    let error = dithered - shaped_signal;
+                    self.quantization_error_history.push(error);
                 }
-            } else if self.equal_loudness.is_some() {
-                // Equal loudness has already applied volume
-                sample
+
+                sample = (dithered + DC_COMPENSATION * quantization_step) * volume;
             } else {
-                // Apply volume directly
-                sample * volume
+                sample *= volume;
             }
+
+            sample
         })
     }
 
@@ -578,7 +564,7 @@ where
 /// DC offset compensation value (0.5) used to shift truncation points.
 /// This helps convert truncation behavior to be more like rounding,
 /// though for negative values an additional correction is still needed.
-const DC_COMPENSATION: f32 = 0.5;
+pub(crate) const DC_COMPENSATION: f32 = 0.5;
 
 /// Quantizes a signal to the nearest step value, using truncation with compensation for negative values.
 ///
