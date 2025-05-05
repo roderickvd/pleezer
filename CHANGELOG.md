@@ -13,6 +13,9 @@ and [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/).
 ### Changed
 - [dither] Lower default noise shaping profile
 
+### Fixed
+- [remote] Fix rare crash when trying to shuffle during connection setup
+
 ## [0.17.2] - 2025-04-27
 
 ### Fixed

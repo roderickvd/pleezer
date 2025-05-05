@@ -1916,7 +1916,9 @@ impl Client {
         let mut position = position;
         if let Some(queue) = self.queue.as_ref() {
             if queue.shuffled {
-                position = queue.tracks_order[position] as usize;
+                if let Some(ordered) = queue.tracks_order.get(position) {
+                    position = *ordered as usize;
+                }
             }
         }
 
