@@ -155,8 +155,6 @@ impl EqualLoudnessFilter {
     /// This should only happen if the sample rate is 0 Hz.
     #[must_use]
     pub fn new(sample_rate: SampleRate, lufs_target: f32, volume: f32) -> Self {
-        let phon = Self::calculate_phon(volume, lufs_target);
-
         let mut filter = Self {
             filters: [(); NUM_BANDS].map(|()| {
                 DirectForm1::<f32>::new(
@@ -174,7 +172,12 @@ impl EqualLoudnessFilter {
             volume,
         };
 
-        filter.filters = std::array::from_fn(|band| filter.create_filters_for_phon(band, phon));
+        let phon = Self::calculate_phon(volume, lufs_target);
+        for band in 0..NUM_BANDS {
+            let coeffs = filter.calculate_coefficients_for_phon(band, phon);
+            filter.filters[band].update_coefficients(coeffs);
+        }
+
         filter
     }
 
@@ -195,7 +198,13 @@ impl EqualLoudnessFilter {
     pub fn update_volume(&mut self, volume: f32) {
         if 2.0 * (volume - self.volume).abs() > f32::EPSILON * (volume.abs() + self.volume.abs()) {
             let phon = Self::calculate_phon(volume, self.lufs_target);
-            self.filters = std::array::from_fn(|band| self.create_filters_for_phon(band, phon));
+
+            // Create and update to new filters
+            for band in 0..NUM_BANDS {
+                let new_coeffs = self.calculate_coefficients_for_phon(band, phon);
+                self.filters[band].update_coefficients(new_coeffs);
+            }
+
             self.volume = volume;
         }
     }
@@ -226,7 +235,7 @@ impl EqualLoudnessFilter {
     /// Panics if:
     /// * Given band index is out of range (must be < `NUM_BANDS`)
     /// * Unable to create filter coefficients for the current sample rate
-    fn create_filters_for_phon(&self, band: usize, phon: f32) -> DirectForm1<f32> {
+    fn calculate_coefficients_for_phon(&self, band: usize, phon: f32) -> Coefficients<f32> {
         let freq = BAND_FREQUENCIES[band];
         let q = BAND_Q[band];
 
@@ -251,11 +260,8 @@ impl EqualLoudnessFilter {
             Type::PeakingEQ(safe_gain)
         };
 
-        let coeffs =
-            Coefficients::<f32>::from_params(filter_type, self.sample_rate.hz(), freq.hz(), q)
-                .expect("failed to create filter coefficients");
-
-        DirectForm1::<f32>::new(coeffs)
+        Coefficients::<f32>::from_params(filter_type, self.sample_rate.hz(), freq.hz(), q)
+            .expect("failed to create filter coefficients")
     }
 
     /// Resets internal filter states without changing coefficients
