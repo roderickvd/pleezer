@@ -17,10 +17,11 @@
 //! * 6 kHz - Presence peak (Q=1.5)
 //! * 12 kHz - High shelf (Q=0.707)
 //!
-//! Filter gains are dynamically adjusted based on:
-//! * Current volume level
-//! * Fixed reference SPL of 83 dB
-//! * ISO 226:2013 equal-loudness contours
+//! The filter gains are dynamically adjusted based on:
+//! * Current listening level (volume)
+//! * Target LUFS level
+//! * Equal-loudness contour shapes
+//! * Reference playback level (83 dB SPL)
 
 use std::f32::consts::SQRT_2;
 
@@ -117,6 +118,12 @@ fn calculate_target_spl(frequency: f32, phon: f32) -> f32 {
 }
 
 /// Multi-band equal loudness filter implementing ISO 226:2013
+///
+/// Implements equal-loudness compensation through:
+/// * Six optimally placed filter bands targeting critical frequencies
+/// * Dynamic filter gain adjustment based on listening level
+/// * ISO 226:2013 equal-loudness contours
+/// * Phase-optimized IIR filters
 #[derive(Debug, Clone)]
 pub struct EqualLoudnessFilter {
     /// Fixed bank of 6 biquad filters for frequency bands:
@@ -138,6 +145,11 @@ impl EqualLoudnessFilter {
     /// * `sample_rate` - The audio sample rate in Hz
     /// * `lufs_target` - Target loudness level in LUFS (typically -15.0)
     /// * `volume` - Initial volume setting (0.0 to 1.0)
+    ///
+    /// # Panics
+    ///
+    /// Panics if unable to create filter coefficients for the given sample rate.
+    /// This should only happen if the sample rate is 0 Hz.
     #[must_use]
     pub fn new(sample_rate: SampleRate, lufs_target: f32, volume: f32) -> Self {
         let phon = Self::calculate_phon(volume, lufs_target);
@@ -163,7 +175,10 @@ impl EqualLoudnessFilter {
         filter
     }
 
-    /// Calculates phon level from volume and LUFS target
+    /// Maps volume and LUFS target to corresponding phon level
+    ///
+    /// Converts the current listening level to phons for equal-loudness curve selection.
+    /// Results are clamped to the valid range (0-100 phons) defined in ISO 226:2013.
     fn calculate_phon(volume: f32, lufs_target: f32) -> f32 {
         // Map volume to phon level for equal-loudness curve selection
         let listening_level = REFERENCE_SPL + lufs_target;
@@ -172,8 +187,8 @@ impl EqualLoudnessFilter {
 
     /// Updates filter coefficients when volume changes
     ///
-    /// Recalculates all filter gains based on new volume level to maintain
-    /// proper equal-loudness compensation.
+    /// Recalculates all filter gains to maintain proper equal-loudness compensation
+    /// at the new listening level. Only updates if volume has changed significantly.
     pub fn update_volume(&mut self, volume: f32) {
         if 2.0 * (volume - self.volume).abs() > f32::EPSILON * (volume.abs() + self.volume.abs()) {
             let phon = Self::calculate_phon(volume, self.lufs_target);
@@ -185,6 +200,7 @@ impl EqualLoudnessFilter {
     /// Processes one audio sample through the filter bank
     ///
     /// Applies equal-loudness compensation through all filter bands in sequence.
+    /// Does not apply volume scaling - that happens separately in the dithering stage.
     #[inline]
     pub fn process(&mut self, input: f32) -> f32 {
         let mut output = input;
@@ -194,6 +210,19 @@ impl EqualLoudnessFilter {
         output
     }
 
+    /// Creates filters for a specific frequency band at given phon level
+    ///
+    /// Calculates filter gains by comparing equal-loudness contours at:
+    /// * Current listening level (phon)
+    /// * Reference level (`REFERENCE_SPL` + `lufs_target`)
+    ///
+    /// Uses only the relative shape difference to maintain proper volume scaling.
+    ///
+    /// # Panics
+    ///
+    /// Panics if:
+    /// * Given band index is out of range (must be < `NUM_BANDS`)
+    /// * Unable to create filter coefficients for the current sample rate
     fn create_filters_for_phon(&self, band: usize, phon: f32) -> DirectForm1<f32> {
         let freq = BAND_FREQUENCIES[band];
         let q = BAND_Q[band];
@@ -222,11 +251,14 @@ impl EqualLoudnessFilter {
         DirectForm1::<f32>::new(coeffs)
     }
 
-    /// Resets all filter states while maintaining current coefficients
+    /// Resets internal filter states without changing coefficients
     ///
-    /// Useful when seeking in audio or when filter state becomes invalid.
+    /// When seeking in audio, the internal states of the biquad filters need to be cleared
+    /// to prevent artifacts from previous audio data. The filter coefficients are maintained
+    /// since the listening level hasn't changed.
     pub fn reset(&mut self) {
-        let phon = Self::calculate_phon(self.volume, self.lufs_target);
-        self.filters = std::array::from_fn(|band| self.create_filters_for_phon(band, phon));
+        for filter in &mut self.filters {
+            filter.reset_state();
+        }
     }
 }

@@ -407,16 +407,20 @@ where
 
 /// Audio source with integrated dithering, noise shaping and volume control.
 ///
-/// Processes audio samples with:
-/// * Volume scaling with headroom management
-/// * TPDF dither when reducing bit depth
-/// * Noise shaping using Shibata filters (when enabled)
-/// * DC offset compensation for optimal rounding
+/// Processes audio samples in this order:
+/// 1. Optional equal-loudness compensation (ISO 226:2013)
+/// 2. When quantization is needed:
+///    * Generates TPDF dither noise at quantization step size
+///    * For noise shaping (N>0):
+///      - Applies filtered error feedback from previous samples
+///      - Reduced dither amplitude due to noise shaping linearization
+///    * Quantizes signal and tracks error if noise shaping enabled
+///    * Adds DC offset compensation
+/// 3. Applies volume scaling
 ///
 /// The type parameter N determines the noise shaping filter length,
-/// which varies by sample rate and chosen profile level. A larger N
-/// generally allows more sophisticated noise shaping but increases
-/// processing complexity.
+/// which varies by sample rate and chosen profile level. N=0 disables
+/// noise shaping for optimal performance when not needed.
 #[derive(Debug, Clone)]
 pub struct DitheredVolume<I, const N: usize> {
     /// The underlying audio source
@@ -487,31 +491,29 @@ where
                 // Calculate TPDF dither at the right bit depth
                 let dither = (self.rng.f32() - self.rng.f32()) * quantization_step;
 
-                // Add noise shaping if enabled
-                let shaped_signal = if N > 0 {
+                // Fast path for no noise shaping (N=0)
+                if N == 0 {
+                    sample = quantize(sample + dither, quantization_step);
+                } else {
+                    // Noise shaping path
                     let mut filtered_error = 0.0;
                     for i in 0..N {
                         filtered_error +=
                             self.filter_coefficients[i] * self.quantization_error_history.get(i);
                     }
-                    sample + filtered_error + NOISE_SHAPING_DITHER_AMPLITUDE * dither
-                } else {
-                    sample + dither
-                };
 
-                // Quantize and track error for noise shaping
-                let dithered = quantize(shaped_signal, quantization_step);
-                if N > 0 {
-                    let error = dithered - shaped_signal;
-                    self.quantization_error_history.push(error);
+                    let shaped = sample + filtered_error + NOISE_SHAPING_DITHER_AMPLITUDE * dither;
+
+                    // Quantize and track error for noise shaping
+                    let dithered = quantize(shaped, quantization_step);
+                    self.quantization_error_history.push(dithered - shaped);
+                    sample = dithered;
                 }
 
-                sample = (dithered + DC_COMPENSATION * quantization_step) * volume;
-            } else {
-                sample *= volume;
+                sample += DC_COMPENSATION * quantization_step;
             }
 
-            sample
+            sample * volume
         })
     }
 
@@ -556,6 +558,9 @@ where
         let result = self.input.try_seek(pos);
         if result.is_ok() {
             self.quantization_error_history.reset();
+            if let Some(equal_loudness) = &mut self.equal_loudness {
+                equal_loudness.reset();
+            }
         }
         result
     }
