@@ -1,7 +1,7 @@
 //! Equal loudness compensation based on ISO 226:2013 standard using biquad filters.
 //!
 //! Implements precise equal-loudness contours using:
-//! * Multi-band IIR filter bank with 6 bands (low shelf, 4 peaks, high shelf)
+//! * Multi-band IIR filter bank with 7 bands (low shelf, 5 peaks, high shelf)
 //! * ISO 226:2013 frequency response curves
 //! * Reference level of 83 dB SPL
 //! * Volume-dependent gain adjustments
@@ -9,13 +9,14 @@
 //!
 //! # Filter Design
 //!
-//! Six-band filter configuration:
-//! * 30 Hz - Low shelf (Q=0.707)
-//! * 100 Hz - Low-mid peak (Q=1.0)
-//! * 500 Hz - Mid peak (Q=1.414)
+//! Seven-band filter configuration:
+//! * 31.5 Hz - Low shelf (Q=0.707)
+//! * 80 Hz - Low-mid peak (Q=1.0)
+//! * 250 Hz - Mid peak 1 (Q=1.2)
+//! * 500 Hz - Mid peak 2 (Q=1.414)
 //! * 2 kHz - Upper-mid peak (Q=1.2)
-//! * 6 kHz - Presence peak (Q=1.5)
-//! * 12 kHz - High shelf (Q=0.707)
+//! * 6.3 kHz - Presence peak (Q=1.5)
+//! * 12.5 kHz - High shelf (Q=0.707)
 //!
 //! The filter gains are dynamically adjusted based on:
 //! * Current listening level (volume)
@@ -66,23 +67,25 @@ const LOUDNESS_SCALE: f32 = 4.47e-3;
 pub const REFERENCE_SPL: f32 = 83.0;
 
 /// Number of bands in the filter bank
-const NUM_BANDS: usize = 6;
+const NUM_BANDS: usize = 7;
 
 /// Center frequencies for each filter band in Hz
 const BAND_FREQUENCIES: [f32; NUM_BANDS] = [
-    30.0,    // Low shelf
-    100.0,   // Low-mid peak
-    500.0,   // Mid peak
+    31.5,    // Low shelf
+    80.0,    // Low-mid peak
+    250.0,   // Mid peak 1
+    500.0,   // Mid peak 2
     2000.0,  // Upper-mid peak
-    6000.0,  // Presence peak
-    12000.0, // High shelf
+    6300.0,  // Presence peak
+    12500.0, // High shelf
 ];
 
 /// Q factors for each filter band
 const BAND_Q: [f32; NUM_BANDS] = [
     Q_BUTTERWORTH_F32, // Low shelf
     1.0,               // Low-mid peak
-    SQRT_2,            // Mid peak
+    1.2,               // Mid peak 1
+    SQRT_2,            // Mid peak 2
     1.2,               // Upper-mid peak
     1.5,               // Presence peak
     Q_BUTTERWORTH_F32, // High shelf
