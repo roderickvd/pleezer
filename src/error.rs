@@ -813,6 +813,7 @@ impl From<rodio::PlayError> for Error {
         use rodio::PlayError::*;
         match e {
             NoDevice => Self::not_found(e),
+            DecoderError(e) => Self::data_loss(e),
         }
     }
 }

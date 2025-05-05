@@ -239,12 +239,16 @@ impl EqualLoudnessFilter {
         let shape_difference =
             (target_response - reference_response) - (phon - (REFERENCE_SPL + self.lufs_target));
 
+        // Allow boosts up to 1.0/volume (in dB), ensuring final output won't clip
+        let max_boost_db = 20.0 * (1.0 / self.volume).log10();
+        let safe_gain = shape_difference.min(max_boost_db);
+
         let filter_type = if band == 0 {
-            Type::LowShelf(shape_difference)
+            Type::LowShelf(safe_gain)
         } else if band == NUM_BANDS - 1 {
-            Type::HighShelf(shape_difference)
+            Type::HighShelf(safe_gain)
         } else {
-            Type::PeakingEQ(shape_difference)
+            Type::PeakingEQ(safe_gain)
         };
 
         let coeffs =
