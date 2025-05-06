@@ -343,10 +343,11 @@ fn parse_secrets(secrets: impl AsRef<Path>) -> Result<toml::Value> {
     // Prevent out-of-memory condition: secrets file should be small.
     let attributes = fs::metadata(&secrets)?;
     let file_size = attributes.len();
-    if file_size > 1024 {
-        return Err(Error::out_of_range(
-            "{secrets} too large: {file_size} bytes",
-        ));
+    if file_size > 4096 {
+        return Err(Error::out_of_range(format!(
+            "{} too large: {file_size} bytes",
+            secrets.as_ref().to_string_lossy()
+        )));
     }
 
     let contents = fs::read_to_string(&secrets)?;
