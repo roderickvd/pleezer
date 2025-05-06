@@ -14,6 +14,7 @@ and [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/).
 - [dither] Lower default noise shaping profile
 
 ### Fixed
+- [gateway] Unable to login after Deezer Connect removal announcement
 - [main] Increase secrets file size limit to allow custom ARLs
 - [remote] Fix rare crash when trying to shuffle during connection setup
 - [volume] Bit depth calculation was one off

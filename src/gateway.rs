@@ -308,7 +308,7 @@ impl Gateway {
         {
             Ok(response) => {
                 if let Some(data) = response.first() {
-                    if !data.gatekeeps.remote_control {
+                    if data.gatekeeps.remote_control.is_some_and(|remote| !remote) {
                         return Err(Error::permission_denied(
                             "remote control is disabled for this account; upgrade your Deezer subscription",
                         ));

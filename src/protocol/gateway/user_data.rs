@@ -232,29 +232,28 @@ pub struct AudioSettings {
 /// Feature flags and capabilities.
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Deserialize, Debug, Hash)]
 pub struct Gatekeeps {
-    // disable_device_limitation: bool,
     /// Whether remote control is enabled
-    pub remote_control: bool,
+    #[serde(default)]
+    pub remote_control: Option<bool>,
 }
 
-/// Creates default feature flags.
+/// Creates default feature flags and capabilities.
 ///
-/// By default:
-/// * Remote control is enabled (`true`)
+/// Sets remote control to `None`.
 ///
 /// # Examples
 ///
 /// ```rust
 /// use deezer::gateway::Gatekeeps;
 ///
-/// let flags = Gatekeeps::default();
-/// assert!(flags.remote_control);
+/// let gatekeeps = Gatekeeps::default();
+/// assert_eq!(gatekeeps.remote_control, None);
 /// ```
 impl Default for Gatekeeps {
     #[inline]
     fn default() -> Self {
         Self {
-            remote_control: true,
+            remote_control: None,
         }
     }
 }
