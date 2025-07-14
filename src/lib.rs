@@ -116,7 +116,6 @@ pub mod events;
 pub mod gateway;
 pub mod http;
 pub mod loudness;
-pub mod normalize;
 pub mod player;
 pub mod protocol;
 pub mod proxy;

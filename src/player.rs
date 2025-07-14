@@ -74,7 +74,7 @@ use std::{collections::HashSet, f32, sync::Arc, time::Duration};
 
 use cpal::traits::{DeviceTrait, HostTrait};
 use md5::{Digest, Md5};
-use rodio::Source;
+use rodio::{Source, source::LimitSettings};
 use stream_download::storage::{
     adaptive::AdaptiveStorageProvider, memory::MemoryStorageProvider, temp::TempStorageProvider,
 };
@@ -87,7 +87,7 @@ use crate::{
     dither,
     error::{Error, ErrorKind, Result},
     events::Event,
-    http, normalize,
+    http,
     protocol::{
         connect::{
             Percentage,
@@ -983,6 +983,7 @@ impl Player {
                 ))
             } else {
                 let ratio = util::db_to_ratio(difference);
+                let amplified = decoder.amplify(ratio);
                 if difference < 1.0 {
                     debug!(
                         "normalizing {} {track} by {difference:.1} dB ({}) by attenuation",
@@ -990,9 +991,8 @@ impl Player {
                         Percentage::from_ratio(ratio)
                     );
 
-                    let attenuated = decoder.amplify(ratio);
                     sources.append_with_signal(dither::dithered_volume(
-                        attenuated,
+                        amplified,
                         self.dithered_volume.clone(),
                         lufs_target,
                         self.noise_shaping,
@@ -1004,16 +1004,13 @@ impl Player {
                         Percentage::from_ratio(ratio)
                     );
 
-                    let normalized = normalize::normalize(
-                        decoder,
-                        ratio,
-                        Self::NORMALIZE_THRESHOLD_DB,
-                        Self::NORMALIZE_KNEE_WIDTH_DB,
-                        Self::NORMALIZE_ATTACK_TIME,
-                        Self::NORMALIZE_RELEASE_TIME,
-                    );
+                    let limiter = LimitSettings::default()
+                        .with_threshold(Self::NORMALIZE_THRESHOLD_DB)
+                        .with_knee_width(Self::NORMALIZE_KNEE_WIDTH_DB)
+                        .with_attack(Self::NORMALIZE_ATTACK_TIME)
+                        .with_release(Self::NORMALIZE_RELEASE_TIME);
                     sources.append_with_signal(dither::dithered_volume(
-                        normalized,
+                        amplified.limit(limiter),
                         self.dithered_volume.clone(),
                         lufs_target,
                         self.noise_shaping,
