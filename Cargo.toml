@@ -12,7 +12,6 @@ categories = ["multimedia::audio"]
 keywords = ["audio", "deezer", "player"]
 documentation = "https://docs.rs/pleezer"
 include = [
-    "benches/**/*",
     "src/**/*",
     "ATTRIBUTION.md",
     "build.rs",
@@ -60,7 +59,6 @@ env_logger = { version = "0.11", default-features = false, features = [
     "humantime",
 ] }
 exponential-backoff = "2.0"
-fastapprox = "0.3"
 flate2 = "1.1"
 futures-util = { version = "0.3", default-features = false }
 governor = { version = "0.10", default-features = false, features = ["std"] }
@@ -118,10 +116,6 @@ name = "pleezer"
 path = "src/main.rs"
 required-features = ["binary"]
 
-[[bench]]
-name = "audio_math"
-harness = false
-
 [lib]
 doctest = false
 
@@ -134,10 +128,6 @@ optional = true
 git2 = { version = "0.20", default-features = false }
 protobuf-codegen = "3"
 time = { version = "0.3", features = ["formatting"] }
-
-[dev-dependencies]
-criterion = { version = "0.6", features = ["html_reports"] }
-fast-math = "0.1"
 
 [profile.release]
 # Default optimization settings balanced for minimum supported hardware

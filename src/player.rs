@@ -74,7 +74,7 @@ use std::{collections::HashSet, f32, sync::Arc, time::Duration};
 
 use cpal::traits::{DeviceTrait, HostTrait};
 use md5::{Digest, Md5};
-use rodio::{Source, source::LimitSettings};
+use rodio::{Source, math::db_to_linear, source::LimitSettings};
 use stream_download::storage::{
     adaptive::AdaptiveStorageProvider, memory::MemoryStorageProvider, temp::TempStorageProvider,
 };
@@ -96,7 +96,7 @@ use crate::{
         gateway::{self, MediaUrl},
     },
     track::{DEFAULT_BITS_PER_SAMPLE, DEFAULT_SAMPLE_RATE, Track, TrackId},
-    util::{self, ToF32, UNITY_GAIN},
+    util::{ToF32, UNITY_GAIN},
     volume::Volume,
 };
 
@@ -982,7 +982,7 @@ impl Player {
                     self.noise_shaping,
                 ))
             } else {
-                let ratio = util::db_to_ratio(difference);
+                let ratio = db_to_linear(difference);
                 let amplified = decoder.amplify(ratio);
                 if difference < 1.0 {
                     debug!(

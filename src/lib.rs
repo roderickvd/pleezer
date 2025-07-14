@@ -124,5 +124,3 @@ pub mod tokens;
 pub mod track;
 pub mod util;
 pub mod volume;
-
-pub use uuid::Uuid;

@@ -4,53 +4,19 @@
 //! * Type conversion traits for audio processing
 //! * Numeric value handling for sample calculations
 //! * Safe floating point conversions
-//! * Audio processing utilities:
-//!   - Decibel/ratio conversions
-//!   - Equal-loudness compensation
-//!   - Bit depth calculations
-//!   - Quantization step sizing
-//!   - Common audio constants
 //!
-//! # Audio Processing
-//!
-//! ## Volume and Gain
-//! * Decibel to ratio conversion for volume changes
-//! * Ratio to decibel conversion for metering
-//! * Volume-aware bit depth calculations
-//! * Equal-loudness compensation (ISO 226:2013)
-//!
-//! ## Bit Depth and Dithering
-//! * Effective bit depth calculation based on volume
-//! * Quantization step size computation
-//! * Support for output device bit depth matching
-//!
-//! # Audio Constants
-//!
-//! * `DB_TO_VOLTAGE`: 0.05 (for voltage/amplitude calculations)
-//! * `VOLTAGE_TO_DB`: 20.0 (for voltage/amplitude calculations)
 //! * `UNITY_GAIN`: 1.0 (no amplification/attenuation)
 //! * `ZERO_DB`: 0.0 (reference level)
 //!
 //! # Example
 //!
 //! ```rust
-//! use pleezer::util::{ToF32, db_to_ratio, ratio_to_db,
-//!                     calculate_effective_bit_depth, calculate_quantization_step};
+//! use pleezer::util::ToF32;
 //!
 //! // Safe numeric conversion
 //! let large_value: f64 = 1e308;
 //! let clamped: f32 = large_value.to_f32_lossy();
-//!
-//! // Audio gain calculations
-//! let ratio = db_to_ratio(-6.0);  // Convert -6 dB to ratio
-//! let db = ratio_to_db(0.5);      // Convert 0.5 ratio to dB
-//!
-//! // Bit depth calculations
-//! let effective_bits = calculate_effective_bit_depth(24.0, 16, 1.0);
-//! let quant_step = calculate_quantization_step(24.0, 16, 1.0);
 //! ```
-
-use std::f32::consts::{LOG2_10, LOG10_2};
 
 /// Trait for converting numeric values to `f32` with controlled truncation.
 ///
@@ -253,64 +219,8 @@ impl ToF32 for usize {
     }
 }
 
-/// Multiplier for converting from decibels to voltage ratio (0.05)
-pub const DB_TO_VOLTAGE: f32 = 0.05;
-
-/// Multiplier for converting from voltage ratio to decibels (20.0)
-pub const VOLTAGE_TO_DB: f32 = 20.0;
-
 /// Unity gain (no amplification or attenuation).
 pub const UNITY_GAIN: f32 = 1.0;
 
 /// Zero decibels reference level.
 pub const ZERO_DB: f32 = 0.0;
-
-/// Converts a decibel value to a linear amplitude ratio.
-///
-/// Used for volume normalization calculations:
-/// * 0 dB -> ratio of 1.0 (no change)
-/// * Positive dB -> ratio > 1.0 (amplification)
-/// * Negative dB -> ratio < 1.0 (attenuation)
-///
-/// # Arguments
-///
-/// * `db` - Decibel value to convert
-///
-/// # Returns
-///
-/// Linear amplitude ratio corresponding to the decibel value
-#[must_use]
-#[inline]
-pub fn db_to_ratio(db: f32) -> f32 {
-    // Using fastapprox::fast::pow2 with LOG2_10 conversion shows best accuracy
-    // and good performance on target platforms:
-    // * RPi4: ~58ns with excellent accuracy (<0.001% error)
-    // * Accurate stereo coupling in normalizer
-    // * Consistent behavior across the full range
-    fastapprox::fast::pow2(db * DB_TO_VOLTAGE * LOG2_10)
-}
-
-/// Converts a linear amplitude ratio to decibels.
-///
-/// Inverse of `db_to_ratio`:
-/// * Ratio of 1.0 -> 0 dB (no change)
-/// * Ratio > 1.0 -> Positive dB (amplification)
-/// * Ratio < 1.0 -> Negative dB (attenuation)
-///
-/// # Arguments
-///
-/// * `ratio` - Linear amplitude ratio to convert
-///
-/// # Returns
-///
-/// Decibel value corresponding to the amplitude ratio
-#[must_use]
-#[inline]
-pub fn ratio_to_db(ratio: f32) -> f32 {
-    // Using fastapprox::fast::log2 with LOG10_2 conversion shows best accuracy
-    // and good performance on target platforms:
-    // * RPi4: ~29ns with excellent accuracy (<0.001% error)
-    // * Critical for accurate peak detection in normalizer
-    // * Consistent behavior across the full range
-    fastapprox::fast::log2(ratio) * LOG10_2 * VOLTAGE_TO_DB
-}
