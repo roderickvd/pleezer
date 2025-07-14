@@ -242,7 +242,7 @@ pub struct Player {
     /// Callback for handling stream errors.
     ///
     /// This is used to notify the player of any stream errors that occur during playback.
-    stream_error_rx: Option<std::sync::mpsc::Receiver<cpal::StreamError>>,
+    stream_error_rx: Option<tokio::sync::mpsc::UnboundedReceiver<cpal::StreamError>>,
 
     /// Queue of audio sources.
     ///
@@ -566,7 +566,7 @@ impl Player {
         debug!("opening output device");
 
         // Create a channel for stream error notifications.
-        let (stream_error_tx, stream_error_rx) = std::sync::mpsc::channel();
+        let (stream_error_tx, stream_error_rx) = tokio::sync::mpsc::unbounded_channel();
         self.stream_error_rx = Some(stream_error_rx);
         let callback = move |err: cpal::StreamError| {
             // Forward the error to the main thread for handling
@@ -1091,7 +1091,7 @@ impl Player {
         const RUN_FREQUENCY: Duration = Duration::from_millis(10);
         loop {
             // Check for stream errors and handle them.
-            if let Some(error_rx) = &self.stream_error_rx {
+            if let Some(error_rx) = &mut self.stream_error_rx {
                 if let Ok(err) = error_rx.try_recv() {
                     self.stop();
                     return Err(err.into());
