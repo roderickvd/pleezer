@@ -49,6 +49,8 @@ use std::{env, fs, path::Path, process, time::Duration};
 use clap::{Parser, ValueHint, command};
 use exponential_backoff::Backoff;
 use log::{LevelFilter, debug, error, info, trace, warn};
+use rand::Rng;
+use uuid::Uuid;
 
 use pleezer::{
     arl::Arl,
@@ -59,7 +61,6 @@ use pleezer::{
     protocol::connect::{DeviceType, Percentage},
     remote,
     signal::{self, ShutdownSignal},
-    uuid::Uuid,
 };
 
 /// Build profile indicator for logging.
@@ -458,11 +459,11 @@ async fn run(args: Args) -> Result<ShutdownSignal> {
         let app_version = env!("CARGO_PKG_VERSION").to_owned();
         let app_lang = "en".to_owned();
 
-        let device_id = *machine_uid::get()
+        let device_id = machine_uid::get()
             .and_then(|uid| uid.parse().map_err(Into::into))
             .unwrap_or_else(|_| {
                 warn!("could not get machine uuid, using random device id");
-                Uuid::fast_v4()
+                Uuid::new_v4()
             });
         trace!("device uuid: {device_id}");
 
@@ -508,7 +509,7 @@ async fn run(args: Args) -> Result<ShutdownSignal> {
         trace!("user agent: {user_agent}");
 
         // Deezer on desktop uses a new `cid` on every start.
-        let client_id = fastrand::usize(100_000_000..=999_999_999);
+        let client_id = rand::rng().random_range(100_000_000..=999_999_999);
         trace!("client id: {client_id}");
 
         Config {

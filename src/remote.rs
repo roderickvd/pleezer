@@ -122,6 +122,7 @@ use std::{
 
 use futures_util::{SinkExt, StreamExt, stream::SplitSink};
 use log::Level;
+use rand::prelude::*;
 use semver;
 use time::OffsetDateTime;
 use tokio::process::Command;
@@ -1272,7 +1273,7 @@ impl Client {
             // until it accepts some offer. Sometimes they take up on old requests,
             // and we don't really care as long as it is directed to us.
             let offer = Body::ConnectionOffer {
-                message_id: crate::Uuid::fast_v4().to_string(),
+                message_id: Uuid::new_v4().to_string(),
                 from: self.device_id.clone(),
                 device_name: self.device_name.clone(),
                 device_type: self.device_type,
@@ -1326,7 +1327,7 @@ impl Client {
             return Err(e);
         }
 
-        let message_id = crate::Uuid::fast_v4().to_string();
+        let message_id = Uuid::new_v4().to_string();
         let ready = Body::Ready {
             message_id: message_id.clone(),
         };
@@ -1394,7 +1395,7 @@ impl Client {
     async fn send_close(&mut self) -> Result<()> {
         if let Some(controller) = self.controller() {
             let close = Body::Close {
-                message_id: crate::Uuid::fast_v4().to_string(),
+                message_id: Uuid::new_v4().to_string(),
             };
 
             let command = self.command(controller.clone(), close);
@@ -1456,7 +1457,7 @@ impl Client {
                 // The unique session ID is used when reporting playback.
                 self.connection_state = ConnectionState::Connected {
                     controller: from,
-                    session_id: crate::Uuid::fast_v4().into(),
+                    session_id: Uuid::new_v4(),
                 };
 
                 info!("connected to {controller}");
@@ -1605,7 +1606,7 @@ impl Client {
     async fn send_ping(&mut self) -> Result<()> {
         if let Some(controller) = self.controller() {
             let ping = Body::Ping {
-                message_id: crate::Uuid::fast_v4().to_string(),
+                message_id: Uuid::new_v4().to_string(),
             };
 
             let command = self.command(controller.clone(), ping);
@@ -1688,13 +1689,13 @@ impl Client {
         if let Some(controller) = self.controller() {
             // First publish the new queue to the controller.
             if let Some(queue) = self.queue.as_mut() {
-                queue.id = crate::Uuid::fast_v4().to_string();
+                queue.id = Uuid::new_v4().to_string();
             }
             self.publish_queue().await?;
 
             // Then signal the controller to refresh its UI.
             let contents = Body::RefreshQueue {
-                message_id: crate::Uuid::fast_v4().to_string(),
+                message_id: Uuid::new_v4().to_string(),
             };
 
             let channel = self.channel(Ident::RemoteQueue);
@@ -1721,7 +1722,7 @@ impl Client {
     /// * Progress report fails
     async fn handle_refresh_queue(&mut self) -> Result<()> {
         if let Some(queue) = self.queue.as_mut() {
-            queue.id = crate::Uuid::fast_v4().to_string();
+            queue.id = Uuid::new_v4().to_string();
             self.publish_queue().await?;
             self.report_playback_progress().await
         } else {
@@ -1747,7 +1748,7 @@ impl Client {
         if let Some(controller) = self.controller() {
             if let Some(queue) = self.queue.as_ref() {
                 let contents = Body::PublishQueue {
-                    message_id: crate::Uuid::fast_v4().to_string(),
+                    message_id: Uuid::new_v4().to_string(),
                     queue: queue.clone(),
                 };
 
@@ -1780,7 +1781,7 @@ impl Client {
     async fn send_acknowledgement(&mut self, acknowledgement_id: &str) -> Result<()> {
         if let Some(controller) = self.controller() {
             let acknowledgement = Body::Acknowledgement {
-                message_id: crate::Uuid::fast_v4().to_string(),
+                message_id: Uuid::new_v4().to_string(),
                 acknowledgement_id: acknowledgement_id.to_string(),
             };
 
@@ -2102,7 +2103,7 @@ impl Client {
 
                     let len = queue.tracks.len();
                     let mut order: Vec<usize> = (0..len).collect();
-                    fastrand::shuffle(&mut order);
+                    order.shuffle(&mut rand::rng());
 
                     let mut tracks = Vec::with_capacity(len);
                     for i in &order {
@@ -2152,7 +2153,7 @@ impl Client {
     async fn send_status(&mut self, command_id: &str, status: Status) -> Result<()> {
         if let Some(controller) = self.controller() {
             let status = Body::Status {
-                message_id: crate::Uuid::fast_v4().to_string(),
+                message_id: Uuid::new_v4().to_string(),
                 command_id: command_id.to_string(),
                 status,
             };
@@ -2227,7 +2228,7 @@ impl Client {
                 };
 
                 let progress = Body::PlaybackProgress {
-                    message_id: crate::Uuid::fast_v4().to_string(),
+                    message_id: Uuid::new_v4().to_string(),
                     track: item,
                     quality: track.quality(),
                     duration: self.player.duration(),

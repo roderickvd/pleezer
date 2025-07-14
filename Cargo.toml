@@ -61,7 +61,6 @@ env_logger = { version = "0.11", default-features = false, features = [
 ] }
 exponential-backoff = "2.0"
 fastapprox = "0.3"
-fastrand = "2.3"
 flate2 = "1.1"
 futures-util = { version = "0.3", default-features = false }
 governor = { version = "0.10", default-features = false, features = ["std"] }
@@ -70,6 +69,7 @@ log = "0.4"
 machine-uid = "0.5"
 md-5 = "0.10"
 protobuf = { version = "3", features = ["with-bytes"] }
+rand = "0.9"
 regex-lite = "0.1"
 reqwest = { version = "0.12", default-features = false, features = [
     "brotli",

@@ -415,7 +415,7 @@ pub enum DeviceId {
 /// ```
 impl Default for DeviceId {
     fn default() -> Self {
-        Self::Uuid(crate::Uuid::fast_v4().into())
+        Self::Uuid(Uuid::new_v4())
     }
 }
 

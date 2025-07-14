@@ -27,7 +27,6 @@
 //!   - [`audio_file`]: Unified interface for audio stream handling
 //!   - [`decrypt`]: Handles encrypted content
 //!   - [`decoder`]: Audio format decoding
-//!   - [`normalize`]: Audio leveling and dynamic range control
 //!   - [`loudness`]: Equal-loudness compensation (ISO 226:2013)
 //!   - [`dither`]: High-quality dithering and noise shaping
 //!   - [`volume`]: Volume control with dithering integration
@@ -51,7 +50,6 @@
 //!   - [`signal`]: Signal handling (SIGTERM, SIGHUP)
 //!   - [`mod@error`]: Error types and handling
 //!   - [`util`]: General helper functions
-//!   - [`uuid`]: UUID generation
 //!
 //! # Example
 //!
@@ -125,7 +123,6 @@ pub mod signal;
 pub mod tokens;
 pub mod track;
 pub mod util;
-pub mod uuid;
 pub mod volume;
 
 pub use uuid::Uuid;
