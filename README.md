@@ -1,5 +1,17 @@
 # pleezer
 
+## ⚠️ IMPORTANT: Deezer Connect Deprecation Notice
+
+**Deezer has officially deprecated Deezer Connect** as announced at https://en.deezercommunity.com/product-updates/say-goodbye-to-deezer-connect-80661. **It is unknown how long pleezer will continue to work.**
+
+Currently, Deezer Connect functionality remains available on:
+- **iOS**: When "Remote Control" is enabled under Deezer Lab settings
+- **Android**: By using an older APK version
+
+**Users should be aware that this functionality may stop working at any time** as Deezer continues to phase out Deezer Connect support.
+
+---
+
 **pleezer** turns your computer into a [Deezer Connect](https://support.deezer.com/hc/en-gb/articles/5449309457949-Deezer-Connect) streaming device that you can control from your phone, just like a Chromecast or smart speaker. Perfect for home audio setups, DIY projects, and custom integrations.
 
 **Important:** A paid [Deezer subscription](https://deezer.com/offers) is required. Free accounts will not work with pleezer.
@@ -41,6 +53,8 @@ Need help? Check out [Troubleshooting](#troubleshooting) or join our [Discussion
 ## Important Disclaimer
 
 **pleezer** is an independent project and is not affiliated with, endorsed by, or created by Deezer. It is developed to provide a streaming player that is fully compatible with the Deezer Connect protocol.
+
+
 
 **pleezer** **does not and will not support** saving or extracting music files for offline use. This project:
 - Respects artists' rights and opposes piracy

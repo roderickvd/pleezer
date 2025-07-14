@@ -660,6 +660,13 @@ async fn main() {
 
     info!("starting {name}/{version}; {BUILD_PROFILE}");
 
+    // Warning about Deezer Connect deprecation
+    warn!("⚠️  DEPRECATION WARNING: Deezer has officially deprecated Deezer Connect!");
+    warn!("   This functionality may stop working at any time.");
+    warn!(
+        "   See: https://en.deezercommunity.com/product-updates/say-goodbye-to-deezer-connect-80661"
+    );
+
     loop {
         match run(args.clone()).await {
             Ok(signal) => {
