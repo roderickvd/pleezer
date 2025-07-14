@@ -104,6 +104,7 @@ pub struct Decoder {
     demuxer: Box<dyn FormatReader>,
 
     /// Codec decoder for converting encoded packets to PCM samples
+    #[allow(clippy::struct_field_names)]
     decoder: Box<dyn symphonia::core::codecs::Decoder>,
 
     /// Reusable sample buffer to minimize allocations

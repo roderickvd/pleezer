@@ -242,7 +242,7 @@ pub struct Track {
 
     /// Authentication token for media access.
     /// None for livestreams or when using external URLs.
-    track_token: Option<String>,
+    token: Option<String>,
 
     /// Whether content is served from external source
     external: bool,
@@ -772,13 +772,13 @@ impl Track {
             return self.get_external_medium(quality);
         }
 
-        let track_token = self.track_token.as_ref().ok_or_else(|| {
+        let track_token = self.token.as_ref().ok_or_else(|| {
             Error::permission_denied(format!("{} {self} does not have a track token", self.typ))
         })?;
 
         let mut track_tokens = vec![track_token.to_owned()];
         if let Some(fallback) = &self.fallback {
-            if let Some(fallback_token) = fallback.track_token.as_ref() {
+            if let Some(fallback_token) = fallback.token.as_ref() {
                 track_tokens.push(fallback_token.to_owned());
             }
         }
@@ -1082,7 +1082,7 @@ impl Track {
                     std::mem::swap(&mut self.duration, &mut fallback.duration);
                     std::mem::swap(&mut self.title, &mut fallback.title);
                     std::mem::swap(&mut self.gain, &mut fallback.gain);
-                    std::mem::swap(&mut self.track_token, &mut fallback.track_token);
+                    std::mem::swap(&mut self.token, &mut fallback.token);
                     std::mem::swap(&mut self.expiry, &mut fallback.expiry);
                 }
                 medium
@@ -1366,7 +1366,7 @@ impl From<gateway::ListData> for Track {
         Self {
             typ,
             id: item.id(),
-            track_token: item.track_token().map(ToOwned::to_owned),
+            token: item.token().map(ToOwned::to_owned),
             title: item.title().map(ToOwned::to_owned),
             artist: item.artist().to_owned(),
             album_title: album_title.map(ToString::to_string),

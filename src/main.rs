@@ -644,7 +644,7 @@ async fn main() {
 
     // Dump command line arguments before we do anything more.
     // This aids in debugging of whatever comes next.
-    debug!("Command {:#?}", args);
+    debug!("Command {args:#?}");
 
     let cmd = command!();
     let name = cmd.get_name().to_string();

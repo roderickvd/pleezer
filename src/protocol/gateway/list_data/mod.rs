@@ -507,7 +507,7 @@ impl ListData {
     /// * Livestreams - None (uses direct URLs)
     #[must_use]
     #[inline]
-    pub fn track_token(&self) -> Option<&str> {
+    pub fn token(&self) -> Option<&str> {
         match self {
             ListData::Song { track_token, .. } | ListData::Episode { track_token, .. } => {
                 Some(track_token)
