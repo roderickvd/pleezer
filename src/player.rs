@@ -239,6 +239,11 @@ pub struct Player {
     /// Only available when device is open (between `start()` and `stop()`).
     stream: Option<rodio::OutputStream>,
 
+    /// Callback for handling stream errors.
+    ///
+    /// This is used to notify the player of any stream errors that occur during playback.
+    stream_error_rx: Option<std::sync::mpsc::Receiver<cpal::StreamError>>,
+
     /// Queue of audio sources.
     ///
     /// Contains decoded and processed audio data ready for playback.
@@ -358,6 +363,7 @@ impl Player {
             device: device.to_owned(),
             sink: None,
             stream: None,
+            stream_error_rx: None,
             sources: None,
             max_ram: config.max_ram,
         })
@@ -559,6 +565,16 @@ impl Player {
 
         debug!("opening output device");
 
+        // Create a channel for stream error notifications.
+        let (stream_error_tx, stream_error_rx) = std::sync::mpsc::channel();
+        self.stream_error_rx = Some(stream_error_rx);
+        let callback = move |err: cpal::StreamError| {
+            // Forward the error to the main thread for handling
+            if let Err(e) = stream_error_tx.send(err) {
+                error!("failed to send stream error: {e}");
+            }
+        };
+
         let (device, device_config) = Self::get_device(&self.device)?;
         let stream_handle = {
             let mut duration = Self::BUFFER_SIZE_MIN;
@@ -570,6 +586,7 @@ impl Player {
                     .with_device(device.clone())
                     .with_supported_config(&device_config)
                     .with_buffer_size(cpal::BufferSize::Fixed(size))
+                    .with_error_callback(callback.clone())
                     .open_stream()
                 {
                     debug!(
@@ -585,6 +602,7 @@ impl Player {
                     let stream_handle = rodio::OutputStreamBuilder::default()
                         .with_device(device)
                         .with_supported_config(&device_config)
+                        .with_error_callback(callback.clone())
                         .open_stream()?;
                     info!("audio buffer size: default");
                     break stream_handle;
@@ -1072,6 +1090,14 @@ impl Player {
     pub async fn run(&mut self) -> Result<()> {
         const RUN_FREQUENCY: Duration = Duration::from_millis(10);
         loop {
+            // Check for stream errors and handle them.
+            if let Some(error_rx) = &self.stream_error_rx {
+                if let Ok(err) = error_rx.try_recv() {
+                    self.stop();
+                    return Err(err.into());
+                }
+            }
+
             match self.current_rx.as_mut() {
                 Some(current_rx) => {
                     if current_rx.try_recv().is_ok() {

@@ -931,3 +931,14 @@ impl From<std::num::TryFromIntError> for Error {
         Self::invalid_argument(e)
     }
 }
+
+/// Converts cpal stream errors into appropriate error kinds.
+impl From<cpal::StreamError> for Error {
+    fn from(e: cpal::StreamError) -> Self {
+        use cpal::StreamError::*;
+        match e {
+            DeviceNotAvailable => Self::unavailable(e),
+            BackendSpecific { err } => Self::unknown(err),
+        }
+    }
+}
