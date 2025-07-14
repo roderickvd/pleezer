@@ -25,8 +25,6 @@ include = [
 ]
 
 [patch.crates-io]
-# TODO: remove when Rodio 0.21 is released
-rodio = { git = "https://github.com/roderickvd/rodio", branch = "fix/compilation-without-decoder" }
 # TODO: remove when https://github.com/pdeljanov/Symphonia/pull/340 is merged
 symphonia = { git = "https://github.com/roderickvd/Symphonia", branch = "perf/faster-seeking" }
 
@@ -56,7 +54,7 @@ biquad = "0.5"
 blowfish = "0.9"
 cbc = "0.1"
 cookie_store = { version = "0.21", default-features = false }
-cpal = "0.15"
+cpal = "0.16"
 env_logger = { version = "0.11", default-features = false, features = [
     "auto-color",
     "humantime",
@@ -80,14 +78,16 @@ reqwest = { version = "0.12", default-features = false, features = [
     "stream",
 ] }
 reqwest_cookie_store = "0.8"
-rodio = { version = "0.20", default-features = false, features = ["playback"] }
+rodio = { version = "0.21.1", default-features = false, features = [
+    "playback",
+] }
 semver = "1.0"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 serde_repr = "0.1"
-serde_with = { version = "3.12", features = ["json"] }
-stream-download = { version = "0.19", features = ["reqwest-rustls"] }
-sysinfo = { version = "0.35", default-features = false, features = ["system"] }
+serde_with = { version = "3.14", features = ["json"] }
+stream-download = { version = "0.22", features = ["reqwest-rustls"] }
+sysinfo = { version = "0.36", default-features = false, features = ["system"] }
 symphonia = { version = "0.5", default-features = false, features = [
     "aac",
     "flac",
@@ -105,9 +105,9 @@ tokio = { version = "1", features = [
     "rt-multi-thread",
     "time",
 ] }
-tokio-tungstenite = { version = "0.26", features = ["rustls-tls-native-roots"] }
+tokio-tungstenite = { version = "0.27", features = ["rustls-tls-native-roots"] }
 tokio-util = "0.7"
-toml = "0.8"
+toml = "0.9"
 url = { version = "2.5", features = ["serde"] }
 uuid = { version = "1.15", features = ["serde", "v4"] }
 veil = "0.2"
@@ -135,7 +135,7 @@ protobuf-codegen = "3"
 time = { version = "0.3", features = ["formatting"] }
 
 [dev-dependencies]
-criterion = { version = "0.5", features = ["html_reports"] }
+criterion = { version = "0.6", features = ["html_reports"] }
 fast-math = "0.1"
 
 [profile.release]

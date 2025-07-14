@@ -1,7 +1,10 @@
-use criterion::{BenchmarkId, Criterion, black_box, criterion_group, criterion_main};
-use std::f32::{
-    self,
-    consts::{LN_10, LOG2_10, LOG10_2, LOG10_E},
+use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
+use std::{
+    f32::{
+        self,
+        consts::{LN_10, LOG2_10, LOG10_2, LOG10_E},
+    },
+    hint::black_box,
 };
 
 #[inline]

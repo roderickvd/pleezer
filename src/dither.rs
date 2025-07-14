@@ -63,8 +63,7 @@ use coeffs::{
     SHIBATA_96_ATH_A_2, SHIBATA_192_ATH_A_0, SHIBATA_192_ATH_A_1, SHIBATA_192_ATH_A_2,
     SHIBATA_882_ATH_A_0, SHIBATA_882_ATH_A_1, SHIBATA_882_ATH_A_2,
 };
-use cpal::ChannelCount;
-use rodio::{Source, source::SeekError};
+use rodio::{ChannelCount, Source, source::SeekError};
 
 use crate::{loudness::EqualLoudnessFilter, ringbuf::RingBuffer, volume::Volume};
 

@@ -651,7 +651,7 @@ impl From<tokio_tungstenite::tungstenite::Error> for Error {
             HttpFormat(err) => Self::unknown(err),
             Protocol(err) => Self::unknown(err),
             Url(err) => Self::unknown(err),
-            Utf8 => Self::invalid_argument(err),
+            Utf8(err) => Self::invalid_argument(err),
             WriteBufferFull(err) => Self::resource_exhausted(err.to_string()),
             AttackAttempt => Self::permission_denied(err),
         }
