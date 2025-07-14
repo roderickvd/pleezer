@@ -591,6 +591,29 @@ impl From<std::io::Error> for Error {
 /// * etc.
 impl From<reqwest::Error> for Error {
     fn from(err: reqwest::Error) -> Self {
+        if let Some(status) = err.status() {
+            return match status.as_u16() {
+                400 => Self::invalid_argument(err),
+                401 => Self::unauthenticated(err),
+                403 => Self::permission_denied(err),
+                404 => Self::not_found(err),
+                409 => Self::already_exists(err),
+                429 => Self::resource_exhausted(err),
+                499 => Self::cancelled(err),
+                500 => Self::unknown(err),
+                501 => Self::unimplemented(err),
+                503 => Self::unavailable(err),
+                504 => Self::deadline_exceeded(err),
+                _ => {
+                    if status.is_client_error() {
+                        Self::invalid_argument(err)
+                    } else {
+                        Self::unknown(err)
+                    }
+                }
+            };
+        }
+
         if err.is_body() {
             return Self::data_loss(err);
         }
