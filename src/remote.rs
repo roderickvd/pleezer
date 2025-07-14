@@ -2312,7 +2312,7 @@ impl Client {
                                 }
                             }
 
-                            Message::StreamReceive { .. } => {
+                            Message::StreamReceive { contents, .. } => {
                                 if self.eavesdrop {
                                     if log_enabled!(Level::Trace) {
                                         trace!("{message:#?}");
@@ -2320,6 +2320,25 @@ impl Client {
                                         debug!("{message}");
                                     }
                                 }
+
+                                if contents.action == stream::Action::Play {
+                                    let value = contents.value;
+                                    if value.user == self.user_id() {
+                                        if let ConnectionState::Connected { session_id, .. } =
+                                            self.connection_state
+                                        {
+                                            if value.uuid != session_id {
+                                                warn!(
+                                                    "playback started on another device; stopping playback"
+                                                );
+                                                if let Err(e) = self.player.set_playing(false) {
+                                                    error!("error stopping playback: {e}");
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+
                                 return ControlFlow::Continue(());
                             }
 
