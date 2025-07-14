@@ -5,6 +5,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 and [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/).
 
+## [Unreleased]
+
+### Added
+- [player] Stop player when audio stream errors occur
+
+### Changed
+- [dither] Replaced own TPDF generation with Rodio's noise generator
+- [main, player] Replaced `fastrand` with `rand` for cleaner dependencies
+
+### Removed
+- [benches] Remove benchmarks for audio math operations as they are no longer relevant
+- [normalize] Remove `normalize` module in favor of Rodio's limiter
+- [util] Removed `db_to_ratio` and `ratio_to_db` in favor of Rodio `db_to_linear`
+- [uuid] Removed `uuid` wrapper module in favor of the `uuid` crate directly
+
 ## [v0.18.0] - 2025-05-06
 
 ### Added
