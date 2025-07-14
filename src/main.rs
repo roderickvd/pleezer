@@ -340,7 +340,7 @@ fn init_logger(config: &Args) {
 /// * File exceeds size limit
 /// * Content isn't valid UTF-8
 /// * Content isn't valid TOML
-fn parse_secrets(secrets: impl AsRef<Path>) -> Result<toml::Value> {
+fn parse_secrets(secrets: impl AsRef<Path>) -> Result<toml::Table> {
     // Prevent out-of-memory condition: secrets file should be small.
     let attributes = fs::metadata(&secrets)?;
     let file_size = attributes.len();
@@ -352,7 +352,7 @@ fn parse_secrets(secrets: impl AsRef<Path>) -> Result<toml::Value> {
     }
 
     let contents = fs::read_to_string(&secrets)?;
-    contents.parse::<toml::Value>().map_err(|e| {
+    contents.parse::<toml::Table>().map_err(|e| {
         Error::invalid_argument(format!(
             "{} format invalid: {e}",
             secrets.as_ref().to_string_lossy()
