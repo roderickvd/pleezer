@@ -17,6 +17,7 @@ and [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/).
 - [main] Disable noise shaping by default
 - [main, player] Replaced `fastrand` with `rand` for cleaner dependencies
 - [player] Device enumeration has changed. Run with `-d "?"` to see available devices.
+- [remote] Disconnect from the controller when setting the player state fails
 
 ### Removed
 - [benches] Remove benchmarks for audio math operations as they are no longer relevant
