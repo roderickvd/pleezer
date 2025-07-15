@@ -184,12 +184,13 @@ struct Args {
 
     /// Set noise shaping level
     ///
-    /// Level 2 (default) offers mild noise shaping (~8 dB ultrasonic rise) suitable for most music.
+    /// Level 0 (default) offers maximum compatibility and safety.
     ///
-    /// * 0: No shaping (plain TPDF dither) - safest, recommended for podcasts
-    /// * 1: Very mild shaping (~5 dB ultrasonic rise)
-    /// * 2: Mild shaping (~8 dB rise) - recommended default for most music
-    /// * 3: Moderate shaping (~12 dB rise) - can benefit classical/jazz/ambient
+    /// * 0: No shaping (plain TPDF dither) - recommended for pop/rock/electronic/hip-hop/podcasts
+    /// * 1: Very mild shaping (~5 dB ultrasonic rise) - good for indie/folk/country/R&B/blues
+    /// * 2: Mild shaping (~8 dB rise) - suitable for jazz fusion/progressive rock/soundtracks
+    /// * 3: Moderate shaping (~12 dB rise) - best for classical/chamber music/solo piano/ambient
+    /// * 4: Strong shaping (~15 dB rise) - only for extremely dynamic content or archival transfers
     /// * 4-7: Aggressive shaping - not recommended due to high ultrasonic energy that may:
     ///   - Stress tweeters and headphone drivers
     ///   - Cause intermodulation distortion
