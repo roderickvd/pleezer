@@ -74,7 +74,7 @@ use std::{collections::HashSet, f32, sync::Arc, time::Duration};
 
 use cpal::traits::{DeviceTrait, HostTrait};
 use md5::{Digest, Md5};
-use rodio::{Source, math::db_to_linear, source::LimitSettings};
+use rodio::{ChannelCount, Source, math::db_to_linear, source::LimitSettings};
 use stream_download::storage::{
     adaptive::AdaptiveStorageProvider, memory::MemoryStorageProvider, temp::TempStorageProvider,
 };
@@ -456,6 +456,14 @@ impl Player {
             other => other,
         };
 
+        let channel_priority = |channels: ChannelCount| -> u8 {
+            match channels {
+                2 => 0, // Stereo - highest priority
+                1 => 2, // Mono - lowest priority
+                _ => 1, // Multi-channel - middle priority
+            }
+        };
+
         let find_config = |rate: Option<u32>| -> Result<rodio::SupportedStreamConfig> {
             if let Some(format) = &format {
                 // When format is specified, it must be supported
@@ -477,8 +485,8 @@ impl Player {
                     })
                     .collect();
 
-                // Prefer stereo over mono
-                configs.sort_by_key(|config| std::cmp::Reverse(config.channels()));
+                // Prefer stereo (2), then multi-channel (>2), then mono (1)
+                configs.sort_by_key(|config| channel_priority(config.channels()));
 
                 configs.into_iter().next().ok_or_else(|| {
                     Error::unavailable(format!(
@@ -495,8 +503,8 @@ impl Player {
                         .filter_map(|config| config.try_with_sample_rate(cpal::SampleRate(rate)))
                         .collect();
 
-                    // Prefer stereo over mono
-                    configs.sort_by_key(|config| std::cmp::Reverse(config.channels()));
+                    // Prefer stereo (2), then multi-channel (>2), then mono (1)
+                    configs.sort_by_key(|config| channel_priority(config.channels()));
 
                     configs.into_iter().next().ok_or_else(|| {
                         Error::unavailable(format!(
@@ -511,8 +519,8 @@ impl Player {
                         .map(cpal::SupportedStreamConfigRange::with_max_sample_rate)
                         .collect();
 
-                    // Prefer stereo over mono
-                    configs.sort_by_key(|config| std::cmp::Reverse(config.channels()));
+                    // Prefer stereo (2), then multi-channel (>2), then mono (1)
+                    configs.sort_by_key(|config| channel_priority(config.channels()));
 
                     configs.into_iter().next().ok_or_else(|| {
                         Error::unavailable("no supported audio configuration found".to_string())
