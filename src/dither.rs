@@ -136,11 +136,7 @@ where
     };
 
     let sample_rate = input.sample_rate();
-    if noise_shaping_profile == 0 {
-        debug!("noise shaping profile: disabled");
-    } else {
-        debug!("noise shaping profile: {}", noise_shaping_profile.min(7));
-
+    if noise_shaping_profile > 0 {
         if ![
             8_000, 11_025, 22_050, 44_100, 48_000, 88_200, 96_000, 192_000,
         ]

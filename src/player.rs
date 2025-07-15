@@ -682,6 +682,12 @@ impl Player {
         let log_volume = Self::log_volume(self.volume.as_ratio());
         self.dithered_volume = Arc::new(Volume::new(log_volume, dither_bits));
 
+        if self.noise_shaping == 0 {
+            debug!("noise shaping profile: disabled");
+        } else {
+            debug!("noise shaping profile: {}", self.noise_shaping);
+        }
+
         // The output source will output silence when the queue is empty.
         // That will cause the sink to report as "playing", so we need to pause it.
         let (sources, output) = rodio::queue::queue(true);
