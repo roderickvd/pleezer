@@ -1038,7 +1038,7 @@ impl Player {
                 let amplified = decoder.amplify(ratio);
                 if difference < 1.0 {
                     debug!(
-                        "normalizing {} {track} by {difference:.1} dB ({}) by attenuation",
+                        "normalizing {} {track} by {difference:.1} dB ({})",
                         track.typ(),
                         Percentage::from_ratio(ratio)
                     );
