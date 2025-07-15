@@ -459,9 +459,9 @@ impl Player {
         let find_config = |rate: Option<u32>| -> Result<rodio::SupportedStreamConfig> {
             if let Some(format) = &format {
                 // When format is specified, it must be supported
-                device
+                let mut configs: Vec<_> = device
                     .supported_output_configs()?
-                    .find_map(|config| {
+                    .filter_map(|config| {
                         if config
                             .sample_format()
                             .to_string()
@@ -475,29 +475,48 @@ impl Player {
                             None
                         }
                     })
-                    .ok_or_else(|| {
+                    .collect();
+
+                // Prefer stereo over mono
+                configs.sort_by_key(|config| std::cmp::Reverse(config.channels()));
+
+                configs.into_iter().next().ok_or_else(|| {
+                    Error::unavailable(format!(
+                        "audio output device {} does not support {} sample format",
+                        device.name().as_deref().unwrap_or("UNKNOWN"),
+                        format
+                    ))
+                })
+            } else {
+                // When no format specified, use any supported format, preferring stereo
+                if let Some(rate) = rate {
+                    let mut configs: Vec<_> = device
+                        .supported_output_configs()?
+                        .filter_map(|config| config.try_with_sample_rate(cpal::SampleRate(rate)))
+                        .collect();
+
+                    // Prefer stereo over mono
+                    configs.sort_by_key(|config| std::cmp::Reverse(config.channels()));
+
+                    configs.into_iter().next().ok_or_else(|| {
                         Error::unavailable(format!(
-                            "audio output device {} does not support {} sample format",
+                            "audio output device {} does not support {} Hz sample rate",
                             device.name().as_deref().unwrap_or("UNKNOWN"),
-                            format
+                            rate
                         ))
                     })
-            } else {
-                // When no format specified, use any supported format
-                match rate {
-                    Some(rate) => device
+                } else {
+                    let mut configs: Vec<_> = device
                         .supported_output_configs()?
-                        .find_map(|config| config.try_with_sample_rate(cpal::SampleRate(rate)))
-                        .ok_or_else(|| {
-                            Error::unavailable(format!(
-                                "audio output device {} does not support {} Hz sample rate",
-                                device.name().as_deref().unwrap_or("UNKNOWN"),
-                                rate
-                            ))
-                        }),
-                    None => device.default_output_config().map_err(|e| {
-                        Error::unavailable(format!("default output configuration unavailable: {e}"))
-                    }),
+                        .map(cpal::SupportedStreamConfigRange::with_max_sample_rate)
+                        .collect();
+
+                    // Prefer stereo over mono
+                    configs.sort_by_key(|config| std::cmp::Reverse(config.channels()));
+
+                    configs.into_iter().next().ok_or_else(|| {
+                        Error::unavailable("no supported audio configuration found".to_string())
+                    })
                 }
             }
         };
@@ -515,10 +534,8 @@ impl Player {
                             Error::unavailable("no supported audio configuration found".to_string())
                         })?
                 } else {
-                    // If neither rate nor format specified, use device default
-                    device.default_output_config().map_err(|e| {
-                        Error::unavailable(format!("default output configuration unavailable: {e}"))
-                    })?
+                    // If neither rate nor format specified, prefer stereo configurations
+                    find_config(None)?
                 }
             }
         };
@@ -532,8 +549,9 @@ impl Player {
         #[expect(clippy::cast_precision_loss)]
         let sample_rate = config.sample_rate().0 as f32 / 1000.0;
         info!(
-            "audio output configuration: {sample_rate:.1} kHz in {}",
-            config.sample_format()
+            "audio output configuration: {sample_rate:.1} kHz in {}, {} channels",
+            config.sample_format(),
+            config.channels()
         );
 
         Ok((device, config))
