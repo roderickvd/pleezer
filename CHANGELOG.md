@@ -5,7 +5,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 and [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/).
 
-## [Unreleased]
+## [v0.19.0] - 2025-07-15
 
 ### Added
 - [docs, main] Add Deezer Connection deprecation notice
@@ -437,8 +437,9 @@ Initial release of pleezer, a headless streaming player for the Deezer Connect p
 - Debug and trace logging capabilities
 - Command-line interface with various configuration options
 
-[Unreleased]: https://github.com/roderickvd/pleezer/compare/v0.18.0...HEAD
-[0.18.0]: https://github.com/roderickvd/pleezer/releases/tag/v0.17.2
+[Unreleased]: https://github.com/roderickvd/pleezer/compare/v0.19.0...HEAD
+[0.19.0]: https://github.com/roderickvd/pleezer/releases/tag/v0.19.0
+[0.18.0]: https://github.com/roderickvd/pleezer/releases/tag/v0.18.0
 [0.17.2]: https://github.com/roderickvd/pleezer/releases/tag/v0.17.2
 [0.17.1]: https://github.com/roderickvd/pleezer/releases/tag/v0.17.1
 [0.17.0]: https://github.com/roderickvd/pleezer/releases/tag/v0.17.0
