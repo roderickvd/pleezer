@@ -602,7 +602,7 @@ impl Player {
         };
 
         let (device, device_config) = Self::get_device(&self.device)?;
-        let stream_handle = {
+        let mut stream_handle = {
             let mut duration = Self::BUFFER_SIZE_MIN;
             loop {
                 // Calculate buffer size in samples and ensure it's divisible by 4
@@ -635,6 +635,8 @@ impl Player {
                 }
             }
         };
+
+        stream_handle.log_on_drop(false);
         let sink = rodio::Sink::connect_new(stream_handle.mixer());
 
         // Determine the dither bit depth
