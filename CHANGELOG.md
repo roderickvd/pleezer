@@ -15,6 +15,7 @@ and [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/).
 ### Changed
 - [dither] Replaced own TPDF generation with Rodio's noise generator
 - [main, player] Replaced `fastrand` with `rand` for cleaner dependencies
+- [player] Device enumeration has changed. Run with `-d "?"` to see available devices.
 
 ### Removed
 - [benches] Remove benchmarks for audio math operations as they are no longer relevant
