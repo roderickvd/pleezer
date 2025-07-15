@@ -1685,8 +1685,8 @@ impl Player {
             let old = Percentage::from_ratio(self.ramp_volume(target));
             if target > 0.0 && target < 1.0 {
                 debug!(
-                    "volume scaled logarithmically to {}",
-                    Self::log_volume(target)
+                    "volume scaled logarithmically to {}%",
+                    Percentage::from_ratio(Self::log_volume(target))
                 );
             }
             old
