@@ -197,7 +197,7 @@ struct Args {
     #[arg(
         long,
         value_parser = clap::value_parser!(u8).range(0..=7),
-        default_value_t = 2,
+        default_value_t = 0,
         env = "PLEEZER_NOISE_SHAPING",
         verbatim_doc_comment
     )]
