@@ -1688,22 +1688,15 @@ impl Player {
 
         info!("setting volume to {target}");
 
-        // Apply the volume ramp if playback is active. If not, just return the current volume
-        // and store the target volume below for when playback starts.
-        if self.is_started() {
-            let target = target.as_ratio();
-            let old = Percentage::from_ratio(self.ramp_volume(target));
-            if target > 0.0 && target < 1.0 {
-                debug!(
-                    "volume scaled logarithmically to {}%",
-                    Percentage::from_ratio(Self::log_volume(target))
-                );
-            }
-            old
-        } else {
-            self.volume = target;
-            current
+        let target = target.as_ratio();
+        self.ramp_volume(target);
+        if target > 0.0 && target < 1.0 {
+            debug!(
+                "volume scaled logarithmically to {}%",
+                Percentage::from_ratio(Self::log_volume(target))
+            );
         }
+        current
     }
 
     /// Gradually changes audio volume over a short duration to prevent popping.

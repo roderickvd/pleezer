@@ -10,7 +10,7 @@ and [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/).
 ### Added
 - [docs, main] Add Deezer Connection deprecation notice
 - [player] Stop the player when an audio stream error occurs
-- [player] Disconnect when another device becomes active
+- [player] Stop the player when another device becomes active
 
 ### Changed
 - [dither] Replaced own TPDF generation with Rodio's noise generator
