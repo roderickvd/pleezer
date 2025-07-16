@@ -707,13 +707,16 @@ impl Player {
     /// Note: This method is automatically called when the player is dropped,
     /// ensuring proper cleanup of audio device resources.
     pub fn stop(&mut self) {
-        self.ramp_volume(0.0);
+        let original_volume = self.ramp_volume(0.0);
 
         // Don't care if the sink is already dropped: we're already "stopped".
         if let Ok(sink) = self.sink_mut() {
             debug!("closing output device");
             sink.stop();
         }
+
+        // Restore the original volume after stopping the sink, for when the player is restarted.
+        self.ramp_volume(original_volume);
 
         self.sources = None;
         self.stream = None;
@@ -1698,6 +1701,7 @@ impl Player {
             }
             old
         } else {
+            self.volume = target;
             current
         }
     }

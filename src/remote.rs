@@ -1228,9 +1228,10 @@ impl Client {
     /// Returns error if:
     /// * Sending a close message fails
     async fn disconnect(&mut self) -> Result<()> {
-        self.send_close().await?;
+        // Reset state in all cases, even if sending close fails.
+        let result = self.send_close().await;
         self.reset_states();
-        Ok(())
+        result
     }
 
     /// Handles device discovery request from a controller.
