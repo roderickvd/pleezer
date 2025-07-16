@@ -1505,14 +1505,10 @@ impl Client {
         if self.controller().is_some() {
             self.unsubscribe(Ident::RemoteQueue).await?;
             self.unsubscribe(Ident::RemoteCommand).await?;
-
             self.reset_states();
-            return Ok(());
         }
 
-        Err(Error::failed_precondition(
-            "close should have an active connection".to_string(),
-        ))
+        Ok(())
     }
 
     /// Resets connection and discovery states.
