@@ -9,7 +9,7 @@ and [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/).
 
 ### Added
 - [docs, main] Add Deezer Connection deprecation notice
-- [player] Restart the client when an audio stream error occurs
+- [player] Stop the player when an audio stream error occurs
 - [player] Disconnect when another device becomes active
 
 ### Changed
