@@ -2326,10 +2326,10 @@ impl Client {
                                         {
                                             if value.uuid != session_id {
                                                 warn!(
-                                                    "playback started on another device; stopping playback"
+                                                    "playback started on another device; disconnecting",
                                                 );
-                                                if let Err(e) = self.player.set_playing(false) {
-                                                    error!("error stopping playback: {e}");
+                                                if let Err(e) = self.disconnect().await {
+                                                    return ControlFlow::Break(e);
                                                 }
                                             }
                                         }

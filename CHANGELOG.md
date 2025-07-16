@@ -10,14 +10,14 @@ and [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/).
 ### Added
 - [docs, main] Add Deezer Connection deprecation notice
 - [player] Restart the client when an audio stream error occurs
-- [player] Stop player when another device becomes active
+- [player] Disconnect when another device becomes active
 
 ### Changed
 - [dither] Replaced own TPDF generation with Rodio's noise generator
 - [main] Disable noise shaping by default
 - [main, player] Replaced `fastrand` with `rand` for cleaner dependency tree
 - [player] Device enumeration has changed. Run with `-d "?"` to see available devices.
-- [remote] Disconnect from the controller when setting the player state fails
+- [remote] Disconnect when setting the player state fails
 
 ### Removed
 - [benches] Remove benchmarks for audio math operations as they are no longer relevant
