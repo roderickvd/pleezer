@@ -596,9 +596,7 @@ impl Player {
         self.stream_error_rx = Some(stream_error_rx);
         let callback = move |err: cpal::StreamError| {
             // Forward the error to the main thread for handling
-            if let Err(e) = stream_error_tx.send(err) {
-                error!("failed to send stream error: {e}");
-            }
+            let _drop = stream_error_tx.send(err);
         };
 
         let (device, device_config) = Self::get_device(&self.device)?;
@@ -1127,6 +1125,7 @@ impl Player {
             // Check for stream errors and handle them.
             if let Some(error_rx) = &mut self.stream_error_rx {
                 if let Ok(err) = error_rx.try_recv() {
+                    error_rx.close(); // Close the channel to prevent further errors.
                     error!("stopping player due to audio stream error: {err}");
                     self.stop();
                 }
