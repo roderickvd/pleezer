@@ -25,3 +25,6 @@ target/
 
 # Credentials and secret keys
 secrets.toml
+
+# External assets
+bundle.js
