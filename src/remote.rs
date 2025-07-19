@@ -864,7 +864,13 @@ impl Client {
                     }
                 }
 
-                Err(e) = self.player.run(), if self.player.is_started() => break Err(e),
+                Err(e) = self.player.run(), if self.player.is_started() => {
+                    error!("disconnecting due to audio stream error: {e}");
+                    if let Err(e) = self.disconnect().await {
+                        error!("error disconnecting: {e}");
+                        break Err(e);
+                    }
+                }
 
                 Some(event) = self.event_rx.recv() => {
                     self.handle_event(event).await;
@@ -2323,9 +2329,12 @@ impl Client {
                                         {
                                             if value.uuid != session_id {
                                                 warn!(
-                                                    "playback started on another device; stopping player",
+                                                    "playback started on another device; disconnecting",
                                                 );
-                                                self.player.stop();
+                                                if let Err(e) = self.disconnect().await {
+                                                    error!("error disconnecting: {e}");
+                                                    return ControlFlow::Break(e);
+                                                }
                                             }
                                         }
                                     }

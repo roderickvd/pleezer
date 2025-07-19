@@ -1129,8 +1129,7 @@ impl Player {
             if let Some(error_rx) = &mut self.stream_error_rx {
                 if let Ok(err) = error_rx.try_recv() {
                     error_rx.close(); // Close the channel to prevent further errors.
-                    error!("stopping player due to audio stream error: {err}");
-                    self.stop();
+                    return Err(err.into());
                 }
             }
 
