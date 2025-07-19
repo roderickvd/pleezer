@@ -5,12 +5,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 and [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/).
 
-## [v0.19.0] - 2025-07-15
+## [v0.19.0] - 2025-07-19
 
 ### Added
 - [docs, main] Add Deezer Connection deprecation notice
-- [player] Stop the player when an audio stream error occurs
-- [player] Stop the player when another device becomes active
+- [player, remote] Disconnect when an audio stream error occurs
+- [remote] Disconnect when another device becomes active
 
 ### Changed
 - [dither] Replaced own TPDF generation with Rodio's noise generator
