@@ -267,8 +267,32 @@ Examples by platform:
 
 Linux (ALSA):
 ```bash
-pleezer -d "ALSA|default:CARD=USB"          # Named device
-pleezer -d "ALSA|hw:2,0|44100|i32"          # Hardware device with format
+pleezer -d "ALSA|Yggdrasil+"                # Named device with default configuration
+pleezer -d "ALSA|Yggdrasil+|44100|i32"      # Named device with sampling rate and format
+```
+
+**Using ALSA Virtual Devices:**
+Virtual devices like `_audioout` or `camilladsp` are not directly enumerable. To use virtual devices, configure ALSA to route the default device to your virtual device by adding a configuration like this to one of:
+- `~/.asoundrc` (user-specific)
+- `/etc/asound.conf` (system-wide)
+- `/etc/alsa/conf.d/default.conf` (system-wide, recommended)
+
+```
+pcm.!default {
+    type plug
+    slave.pcm "_audioout"
+}
+
+ctl.!default {
+    type hw
+    card 0
+}
+```
+
+Then run pleezer with either no `-d` option or `-d "ALSA|default"`:
+```bash
+pleezer                                     # Uses system default
+pleezer -d "ALSA|default"                   # Explicitly use default
 ```
 
 Linux (JACK) - requires `--features jack`:
