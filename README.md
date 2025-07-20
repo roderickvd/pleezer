@@ -425,8 +425,8 @@ Approximate sizing:
 - FLAC: ~30-50MB per 5-minute track
 
 Double these amounts to handle current and preloaded tracks:
-- `--max-ram 100` for MP3
-- `--max-ram 200` for FLAC
+- `--max-ram 30` for MP3
+- `--max-ram 100` for FLAC
 
 If a track exceeds the limit or `--max-ram` isn't set, temporary files are used instead.
 
@@ -503,10 +503,6 @@ $env:HTTPS_PROXY="https://proxy.example.com:8080"
   pleezer --normalize-volume
   ```
 - Note: Not all tracks have normalization data
-
-**Audio stops after device change**
-- pleezer needs to be restarted if output device becomes unavailable
-- Working on automatic reconnection for future versions
 
 #### Known Limitations
 

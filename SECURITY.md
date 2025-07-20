@@ -4,10 +4,10 @@
 
 The **pleezer** project is actively being developed, and we currently only support the latest version. We recommend users always update to the latest version of **pleezer** to ensure they have the most recent security updates and fixes.
 
-| Version | Supported          |
-| ------- | ------------------ |
-| Latest  | :white_check_mark: |
-| < Latest| :x:                |
+| Version  | Supported          |
+| -------- | ------------------ |
+| Latest   | :white_check_mark: |
+| < Latest | :x:                |
 
 ## Reporting a Vulnerability
 
