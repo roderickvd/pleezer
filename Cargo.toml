@@ -24,6 +24,8 @@ include = [
 ]
 
 [patch.crates-io]
+# TODO: remove when https://github.com/RustAudio/cpal/issues/991 is fixed
+cpal = { git = "https://github.com/roderickvd/cpal", branch = "fix/enumerate-virtual-devices" }
 # TODO: remove when https://github.com/pdeljanov/Symphonia/pull/340 is merged
 symphonia = { git = "https://github.com/roderickvd/Symphonia", branch = "perf/faster-seeking" }
 
