@@ -272,7 +272,7 @@ pleezer -d "ALSA|Yggdrasil+|44100|i32"      # Named device with sampling rate an
 ```
 
 **Using ALSA Virtual Devices:**
-If you are installing from crates, then virtual devices like `_audioout` or `camilladsp` are not directly enumerable. To use virtual devices, either:
+If you are installing from crates, then virtual devices like `_audioout` or `camilladsp` are currently not directly enumerable. To use virtual devices, either:
 - build from source
 - route the default device to your virtual device by adding a configuration to one of:
   - `~/.asoundrc` (user-specific)

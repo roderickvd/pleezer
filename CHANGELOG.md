@@ -5,6 +5,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 and [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/).
 
+## [v0.19.1] - 2025-07-27
+
+### Fixed
+- [player] Virtual ALSA devices are enumerated again if you build from source.
+
 ## [v0.19.0] - 2025-07-19
 
 ### Added
