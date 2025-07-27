@@ -494,7 +494,6 @@ dependencies = [
  "document-features",
  "idna",
  "log",
- "publicsuffix",
  "time",
  "url",
 ]

@@ -242,7 +242,9 @@ impl Gateway {
                 .http_only(true)
                 .build();
             if let Err(e) = cookie_jar.insert_raw(&arl_cookie, &cookie_origin) {
-                return Err(crate::error::Error::invalid_argument(format!("failed to insert ARL cookie: {e}")));
+                return Err(crate::error::Error::invalid_argument(format!(
+                    "failed to insert ARL cookie: {e}"
+                )));
             }
         }
 

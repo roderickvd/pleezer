@@ -54,9 +54,7 @@ base64 = "0.22"
 biquad = "0.5"
 blowfish = "0.9"
 cbc = "0.1"
-cookie_store = { version = "0.22", default-features = false, features = [
-    "public_suffix",
-] }
+cookie_store = { version = "0.22", default-features = false }
 cpal = "0.16"
 env_logger = { version = "0.11", default-features = false, features = [
     "auto-color",

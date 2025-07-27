@@ -905,7 +905,7 @@ impl From<cookie_store::CookieError> for Error {
         use cookie_store::CookieError::*;
         match e {
             Expired => Self::deadline_exceeded(e),
-            DomainMismatch | PublicSuffix => Self::permission_denied(e),
+            DomainMismatch => Self::permission_denied(e),
             _ => Self::invalid_argument(e),
         }
     }
