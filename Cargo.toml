@@ -74,7 +74,7 @@ regex-lite = "0.1"
 reqwest = { version = "0.12", default-features = false, features = [
     "brotli",
     "gzip",
-    "rustls-tls-native-roots",
+    "native-tls",
     "stream",
 ] }
 reqwest_cookie_store = "0.8"
@@ -87,7 +87,7 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 serde_repr = "0.1"
 serde_with = { version = "3.14", features = ["json"] }
-stream-download = { version = "0.22", features = ["reqwest-rustls"] }
+stream-download = { version = "0.22", features = ["reqwest-native-tls"] }
 sysinfo = { version = "0.36", default-features = false, features = ["system"] }
 symphonia = { version = "0.5", default-features = false, features = [
     "aac",
@@ -106,7 +106,7 @@ tokio = { version = "1", features = [
     "rt-multi-thread",
     "time",
 ] }
-tokio-tungstenite = { version = "0.27", features = ["rustls-tls-native-roots"] }
+tokio-tungstenite = { version = "0.27", features = ["native-tls"] }
 tokio-util = "0.7"
 toml = "0.9"
 url = { version = "2.5", features = ["serde"] }
