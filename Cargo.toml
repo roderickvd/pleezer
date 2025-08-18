@@ -7,9 +7,9 @@ edition = "2024"
 rust-version = "1.85"
 license-file = "LICENSE.md"
 readme = "README.md"
-repository = "https://github.com/roderickvd/pleezer/"
+repository = "https://github.com/roderickvd/pleezer"
 categories = ["multimedia::audio"]
-keywords = ["audio", "deezer", "player"]
+keywords = ["audio", "deezer", "music", "streaming", "connect"]
 documentation = "https://docs.rs/pleezer"
 include = [
     "src/**/*",
@@ -177,7 +177,7 @@ assets = [
     ],
 ]
 copyright = "2024, Roderick van Domburg"
-depends = "libasound2"
+depends = "libasound2, libssl3 | libssl1.1"
 suggests = "libjack-dev"
 section = "sound"
 priority = "optional"
