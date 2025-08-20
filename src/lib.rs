@@ -98,6 +98,8 @@
 #![forbid(unsafe_code)]
 #![warn(clippy::pedantic)]
 #![warn(rust_2018_idioms)]
+#![warn(rust_2021_compatibility)]
+#![warn(rust_2024_compatibility)]
 #![warn(future_incompatible)]
 
 #[macro_use]
