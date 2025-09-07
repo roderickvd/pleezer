@@ -46,7 +46,6 @@
 use std::sync::atomic::{AtomicU32, Ordering};
 
 use crate::{
-    dither::DC_COMPENSATION,
     track::DEFAULT_BITS_PER_SAMPLE,
     util::{ToF32, UNITY_GAIN},
 };
@@ -186,8 +185,9 @@ impl Volume {
                 .quantization_step
                 .store(quantization_step.to_bits(), Ordering::Relaxed);
 
-            // Preventing clipping at full scale
-            new = new.min(UNITY_GAIN - (1.0 + DC_COMPENSATION) * quantization_step);
+            // Preventing clipping at full scale - account for maximum +0.5 LSB rounding
+            // compensation
+            new = new.min(UNITY_GAIN - 0.5 * quantization_step);
         }
 
         // set volume last: in case of low volume before, dithering would be at a fairly

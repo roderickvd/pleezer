@@ -507,8 +507,6 @@ where
                     self.quantization_error_history.push(dithered - shaped);
                     sample = dithered;
                 }
-
-                sample += DC_COMPENSATION * quantization_step;
             }
 
             sample * volume
@@ -564,36 +562,29 @@ where
     }
 }
 
-/// DC offset compensation value (0.5) used to shift truncation points.
-/// This helps convert truncation behavior to be more like rounding,
-/// though for negative values an additional correction is still needed.
-pub(crate) const DC_COMPENSATION: f32 = 0.5;
-
-/// Quantizes a signal to the nearest step value, using truncation with compensation for negative values.
+/// Applies rounding compensation to a signal for proper quantization by downstream float-to-int
+/// conversion.
 ///
-/// The quantization process:
-/// 1. Applies DC offset compensation (0.5) to shift the truncation points
-/// 2. Truncates to nearest lower quantization step
-/// 3. For negative signals, subtracts one quantization step to correct truncation bias
+/// This function prepares the signal so that when Rodio/cpal performs float-to-int casting
+/// (which truncates), the result is properly rounded to the nearest quantization level.
+///
+/// The compensation process:
+/// * Adds +0.5 LSB for positive signals
+/// * Adds -0.5 LSB for negative signals
+/// * This implements symmetric "round half away from zero" behavior
 ///
 /// # Arguments
 ///
 /// * `signal` - The input signal value
-/// * `quantization_step` - The size of each quantization level
+/// * `quantization_step` - The size of each quantization level (1 LSB at target bit depth)
 ///
 /// # Returns
 ///
-/// The quantized signal value, adjusted for truncation bias on negative values
+/// The signal with rounding compensation applied, ready for truncating conversion
 #[inline]
 #[must_use]
 fn quantize(signal: f32, quantization_step: f32) -> f32 {
-    // Quantize with DC offset compensation
-    let quantized = (signal / quantization_step + DC_COMPENSATION).trunc() * quantization_step;
-    if signal < 0.0 {
-        quantized - quantization_step
-    } else {
-        quantized
-    }
+    signal + 0.5 * quantization_step.copysign(signal)
 }
 
 /// Shibata noise shaping filter coefficients optimized for different sample rates.
