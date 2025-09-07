@@ -220,7 +220,7 @@ impl Gateway {
     /// * Secure flag
     /// * `HttpOnly` flag
     fn cookie_jar(config: &Config) -> Result<reqwest_cookie_store::CookieStore> {
-        let mut cookie_jar = reqwest_cookie_store::CookieStore::new(None);
+        let mut cookie_jar = reqwest_cookie_store::CookieStore::new();
         let cookie_origin = Self::cookie_origin();
 
         let lang_cookie = RawCookie::build((Self::LANG_COOKIE, &config.app_lang))

@@ -16,8 +16,8 @@ use git2::Repository;
 use time::OffsetDateTime;
 
 fn main() {
-    if let Ok(repo) = Repository::open(".") {
-        if let Some(commit) = repo.head().ok().and_then(|head| head.peel_to_commit().ok()) {
+    if let Ok(repo) = Repository::open(".")
+        && let Some(commit) = repo.head().ok().and_then(|head| head.peel_to_commit().ok()) {
             if let Some(hash) = commit
                 .as_object()
                 .short_id()
@@ -36,7 +36,6 @@ fn main() {
                 );
             }
         }
-    }
 
     let proto_dir = Path::new("src/protocol/connect/protos");
     protobuf_codegen::Codegen::new()

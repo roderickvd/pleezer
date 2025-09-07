@@ -282,11 +282,9 @@ impl Decoder {
                     if tag
                         .std_key
                         .is_some_and(|key| key == StandardTagKey::ReplayGainTrackGain)
-                    {
-                        if let Value::Float(gain) = tag.value {
+                        && let Value::Float(gain) = tag.value {
                             return Some(gain.to_f32_lossy());
                         }
-                    }
                 }
                 None
             })
@@ -401,12 +399,11 @@ impl Decoder {
             if discarded > MAX_RETRIES {
                 break Err(Error::cancelled("discarded too many packets, giving up"));
             }
-            if discarded > 0 {
-                if let Some(buffer) = self.buffer.as_mut() {
+            if discarded > 0
+                && let Some(buffer) = self.buffer.as_mut() {
                     // Internal buffer *must* be cleared if an error occurs.
                     buffer.clear();
                 }
-            }
 
             // Assume failure until a packet is successfully decoded.
             discarded += 1;
@@ -550,11 +547,10 @@ impl rodio::Source for Decoder {
         // Saturate the position to the total duration if it exceeds it.
         // This prevents decoder errors from seeking to a position beyond the stream end.
         let mut target = pos;
-        if let Some(total_duration) = self.total_duration {
-            if target > total_duration {
+        if let Some(total_duration) = self.total_duration
+            && target > total_duration {
                 target = total_duration;
             }
-        }
 
         // Save the currently active channel, so we can skip to it after seeking
         // and prevent accidental channel changes during seeking.
@@ -625,27 +621,25 @@ impl Iterator for Decoder {
     /// * Too many corrupt packets encountered
     fn next(&mut self) -> Option<Self::Item> {
         // Fast path: Check if buffer exists and has remaining samples
-        if let Some(buffer) = &self.buffer {
-            if self.position < buffer.len() {
+        if let Some(buffer) = &self.buffer
+            && self.position < buffer.len() {
                 let sample = buffer.samples()[self.position];
                 self.position += 1;
                 return Some(sample);
             }
-        }
 
         // Need to get next packet since we've exhausted the current buffer
         match self.get_next_packet() {
             Ok(_) => {
                 // Successfully fetched next packet
-                if let Some(buffer) = &self.buffer {
-                    if !buffer.is_empty() {
+                if let Some(buffer) = &self.buffer
+                    && !buffer.is_empty() {
                         // Buffer now has samples - return the first one. This is a bit redundant
                         // but faster than calling next() recursively.
                         let sample = buffer.samples()[0];
                         self.position = 1;
                         return Some(sample);
                     }
-                }
 
                 // Empty buffer after successful packet - could be that this packet contains
                 // metadata only. Recursively try again until we hit the end of the stream.

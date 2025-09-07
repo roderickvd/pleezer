@@ -930,11 +930,9 @@ impl Client {
                             .map_or(0, |queue| queue.tracks.len())
                             .saturating_sub(self.player.position())
                             <= 2
-                        {
-                            if let Err(e) = self.extend_queue().await {
+                            && let Err(e) = self.extend_queue().await {
                                 error!("error extending queue: {e}");
                             }
-                        }
                     }
 
                     if let Some(command) = command.as_mut() {
@@ -952,8 +950,8 @@ impl Client {
             }
 
             Event::TrackChanged => {
-                if let Some(track) = self.player.track() {
-                    if let Some(command) = command.as_mut() {
+                if let Some(track) = self.player.track()
+                    && let Some(command) = command.as_mut() {
                         let codec = track.codec().map_or("Unknown".to_string(), |codec| {
                             codec.to_string().to_uppercase()
                         });
@@ -1008,7 +1006,6 @@ impl Client {
                             command.env("DURATION", duration.as_secs().to_string());
                         }
                     }
-                }
             }
 
             Event::Connected => {
@@ -1106,11 +1103,10 @@ impl Client {
     /// * Processes remaining events
     /// * Unsubscribes from channels
     pub async fn stop(&mut self) {
-        if self.is_connected() {
-            if let Err(e) = self.disconnect().await {
+        if self.is_connected()
+            && let Err(e) = self.disconnect().await {
                 error!("error disconnecting: {e}");
             }
-        }
 
         // Handle any remaining events without closing the event channel,
         // so it will work when the client is restarted.
@@ -1871,11 +1867,10 @@ impl Client {
             }
 
             // Refresh the queue if the shuffle mode has changed.
-            if refresh_queue && self.queue.as_ref().map(|queue| queue.shuffled) == set_shuffle {
-                if let Err(e) = self.refresh_queue().await {
+            if refresh_queue && self.queue.as_ref().map(|queue| queue.shuffled) == set_shuffle
+                && let Err(e) = self.refresh_queue().await {
                     error!("error refreshing queue: {e}");
                 }
-            }
 
             // Report playback progress regardless of the state setting result - it can be that
             // *some* state was set, but not all of it.
@@ -1915,13 +1910,11 @@ impl Client {
     #[inline]
     fn set_position(&mut self, position: usize) {
         let mut position = position;
-        if let Some(queue) = self.queue.as_ref() {
-            if queue.shuffled {
-                if let Some(ordered) = queue.tracks_order.get(position) {
+        if let Some(queue) = self.queue.as_ref()
+            && queue.shuffled
+                && let Some(ordered) = queue.tracks_order.get(position) {
                     position = *ordered as usize;
                 }
-            }
-        }
 
         self.player.set_position(position);
     }
@@ -1995,8 +1988,8 @@ impl Client {
         // Only set the track position if it's for the current track. If it's for another track,
         // then we just skipped to it and we need the player to let it start playing from the
         // beginning.
-        if target == current {
-            if let Some(progress) = progress {
+        if target == current
+            && let Some(progress) = progress {
                 if self
                     .player
                     .track()
@@ -2008,10 +2001,9 @@ impl Client {
                     result = Err(e);
                 }
             }
-        }
 
-        if let Some(shuffle) = set_shuffle {
-            if self
+        if let Some(shuffle) = set_shuffle
+            && self
                 .queue
                 .as_ref()
                 .is_some_and(|queue| queue.shuffled != shuffle)
@@ -2031,7 +2023,6 @@ impl Client {
                     self.player.reorder_queue(&reordered_queue);
                 }
             }
-        }
 
         if let Some(repeat_mode) = set_repeat_mode {
             self.player.set_repeat_mode(repeat_mode);
@@ -2323,11 +2314,10 @@ impl Client {
 
                                 if contents.action == stream::Action::Play {
                                     let value = contents.value;
-                                    if value.user == self.user_id() {
-                                        if let ConnectionState::Connected { session_id, .. } =
+                                    if value.user == self.user_id()
+                                        && let ConnectionState::Connected { session_id, .. } =
                                             self.connection_state
-                                        {
-                                            if value.uuid != session_id {
+                                            && value.uuid != session_id {
                                                 warn!(
                                                     "playback started on another device; disconnecting",
                                                 );
@@ -2336,8 +2326,6 @@ impl Client {
                                                     return ControlFlow::Break(e);
                                                 }
                                             }
-                                        }
-                                    }
                                 }
 
                                 return ControlFlow::Continue(());

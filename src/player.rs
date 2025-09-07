@@ -778,8 +778,8 @@ impl Player {
         {
             if let Ok(devices) = host.output_devices() {
                 for device in devices {
-                    if let Ok(device_name) = device.name() {
-                        if let Ok(configs) = device.supported_output_configs() {
+                    if let Ok(device_name) = device.name()
+                        && let Ok(configs) = device.supported_output_configs() {
                             for config in configs {
                                 if config.channels() == 2
                                     && Self::SAMPLE_FORMATS.contains(&config.sample_format())
@@ -802,7 +802,6 @@ impl Player {
                                 }
                             }
                         }
-                    }
                 }
             }
         }
@@ -913,11 +912,10 @@ impl Player {
         // within the maximum allowed RAM. Otherwise, the current track is stored in a temporary
         // file.
         let mut ram_usage = self.track().and_then(Track::file_size).unwrap_or(0);
-        if let Some(max_ram) = self.max_ram {
-            if ram_usage > max_ram {
+        if let Some(max_ram) = self.max_ram
+            && ram_usage > max_ram {
                 ram_usage = 0;
             }
-        }
 
         let track = self
             .queue
@@ -945,8 +943,8 @@ impl Player {
                 // overridden with the available RAM, if the maximum RAM was configured and the
                 // track is not a livestream.
                 let mut buffer_size = track.prefetch_size();
-                if let Some(max_ram) = self.max_ram {
-                    if !track.is_livestream() {
+                if let Some(max_ram) = self.max_ram
+                    && !track.is_livestream() {
                         let ram_left = max_ram
                             .saturating_sub(ram_usage)
                             .try_into()
@@ -963,7 +961,6 @@ impl Player {
                             buffer_size = ram_left;
                         }
                     }
-                }
 
                 // This will set up the storage as follows:
                 // - livestreams: stored in RAM, bounded by the prefetch size
@@ -993,11 +990,10 @@ impl Player {
             if let Some(progress) = self.deferred_seek.take() {
                 // Set the track position only if `progress` is beyond the track start. We start
                 // at the beginning anyway, and this prevents decoder errors.
-                if !progress.is_zero() {
-                    if let Err(e) = decoder.try_seek(progress) {
+                if !progress.is_zero()
+                    && let Err(e) = decoder.try_seek(progress) {
                         error!("failed to seek to deferred position: {e}");
                     }
-                }
             }
 
             // Apply volume normalization if enabled.
@@ -1126,12 +1122,11 @@ impl Player {
         const RUN_FREQUENCY: Duration = Duration::from_millis(10);
         loop {
             // Check for stream errors and handle them.
-            if let Some(error_rx) = &mut self.stream_error_rx {
-                if let Ok(err) = error_rx.try_recv() {
+            if let Some(error_rx) = &mut self.stream_error_rx
+                && let Ok(err) = error_rx.try_recv() {
                     error_rx.close(); // Close the channel to prevent further errors.
                     return Err(err.into());
                 }
-            }
 
             match self.current_rx.as_mut() {
                 Some(current_rx) => {
@@ -1248,11 +1243,10 @@ impl Player {
     /// Events are sent through the registered channel if available.
     /// Failures are logged but do not interrupt playback.
     fn notify(&self, event: Event) {
-        if let Some(event_tx) = &self.event_tx {
-            if let Err(e) = event_tx.send(event) {
+        if let Some(event_tx) = &self.event_tx
+            && let Err(e) = event_tx.send(event) {
                 error!("failed to send event: {e}");
             }
-        }
     }
 
     /// Registers an event notification channel.
@@ -1744,11 +1738,10 @@ impl Player {
             let log_target = Self::log_volume(target);
             self.dithered_volume.set_volume(log_target);
 
-            if let Some(dither_bits) = self.dithered_volume.effective_bit_depth() {
-                if target > 0.0 {
+            if let Some(dither_bits) = self.dithered_volume.effective_bit_depth()
+                && target > 0.0 {
                     debug!("volume control dither: {dither_bits:.1} bits");
                 }
-            }
         }
 
         original_volume
@@ -1838,8 +1831,8 @@ impl Player {
 
             // If the requested position is beyond what is buffered, seek to the buffered
             // position instead. This prevents blocking the player and disconnections.
-            if !track.is_complete() {
-                if let Some(buffered) = track.buffered() {
+            if !track.is_complete()
+                && let Some(buffered) = track.buffered() {
                     if position > buffered {
                         position = buffered;
                     }
@@ -1848,7 +1841,6 @@ impl Player {
                     let seconds = position.as_secs() % 60;
                     warn!("limiting seek to {minutes:02}:{seconds:02} due to buffering");
                 }
-            }
 
             // Try to seek only if the track has started downloading, otherwise defer the seek.
             // This prevents stalling the player when seeking in a track that has not started.
