@@ -759,13 +759,14 @@ impl Track {
         }
 
         if let Some(expiry) = self.expiry
-            && expiry <= SystemTime::now() {
-                return Err(Error::unavailable(format!(
-                    "{} {self} has expired since {}",
-                    self.typ,
-                    OffsetDateTime::from(expiry)
-                )));
-            }
+            && expiry <= SystemTime::now()
+        {
+            return Err(Error::unavailable(format!(
+                "{} {self} has expired since {}",
+                self.typ,
+                OffsetDateTime::from(expiry)
+            )));
+        }
 
         if self.external {
             return self.get_external_medium(quality);
@@ -777,9 +778,10 @@ impl Track {
 
         let mut track_tokens = vec![track_token.to_owned()];
         if let Some(fallback) = &self.fallback
-            && let Some(fallback_token) = fallback.token.as_ref() {
-                track_tokens.push(fallback_token.to_owned());
-            }
+            && let Some(fallback_token) = fallback.token.as_ref()
+        {
+            track_tokens.push(fallback_token.to_owned());
+        }
 
         let cipher_formats = match quality {
             AudioQuality::Basic => Self::CIPHER_FORMATS_MP3_64.to_vec(),
@@ -818,15 +820,16 @@ impl Track {
         let mut result = None;
         for i in 0..items.data.len() {
             if let Data::Media { media } = &items.data[i]
-                && let Some(medium) = media.first().cloned() {
-                    let medium_type = if i == 0 {
-                        MediumType::Primary(medium)
-                    } else {
-                        MediumType::Fallback(medium)
-                    };
-                    result = Some(medium_type);
-                    break;
-                }
+                && let Some(medium) = media.first().cloned()
+            {
+                let medium_type = if i == 0 {
+                    MediumType::Primary(medium)
+                } else {
+                    MediumType::Fallback(medium)
+                };
+                result = Some(medium_type);
+                break;
+            }
         }
 
         let result = result
@@ -906,23 +909,25 @@ impl Track {
             // refreshed, that the track is not available yet, or that the track is
             // no longer available.
             if let Some(not_before) = medium.not_before
-                && not_before > now {
-                    warn!(
-                        "{} {self} is not available for download until {} from {host_str}",
-                        self.typ,
-                        OffsetDateTime::from(not_before)
-                    );
-                    continue;
-                }
+                && not_before > now
+            {
+                warn!(
+                    "{} {self} is not available for download until {} from {host_str}",
+                    self.typ,
+                    OffsetDateTime::from(not_before)
+                );
+                continue;
+            }
             if let Some(expiry) = medium.expiry
-                && expiry <= now {
-                    warn!(
-                        "{} {self} is no longer available for download since {} from {host_str}",
-                        self.typ,
-                        OffsetDateTime::from(expiry)
-                    );
-                    continue;
-                }
+                && expiry <= now
+            {
+                warn!(
+                    "{} {self} is no longer available for download since {} from {host_str}",
+                    self.typ,
+                    OffsetDateTime::from(expiry)
+                );
+                continue;
+            }
 
             // Perform the request and stream the response.
             match HttpStream::new(client.unlimited.clone(), source.url.clone()).await {
@@ -959,9 +964,10 @@ impl Track {
             // For episodes, we can infer the codec from the URL.
             if let Some(ExternalUrl::Direct(url)) = &self.external_url {
                 if let Some(extension) = url.path().split('.').next_back()
-                    && let Ok(codec) = extension.parse() {
-                        self.codec = Some(codec);
-                    }
+                    && let Ok(codec) = extension.parse()
+                {
+                    self.codec = Some(codec);
+                }
             } else if self.is_user_uploaded() {
                 self.codec = Some(Codec::MP3);
             } else {
@@ -1133,24 +1139,25 @@ impl Track {
                 }
                 StreamPhase::Downloading { .. } => {
                     if let Some(file_size) = file_size
-                        && file_size > 0 {
-                            // `f64` not for precision, but to be able to fit
-                            // as big as possible file sizes.
-                            // TODO : use `Percentage` type
-                            #[expect(clippy::cast_precision_loss)]
-                            let progress = stream.current_position as f64 / file_size as f64;
+                        && file_size > 0
+                    {
+                        // `f64` not for precision, but to be able to fit
+                        // as big as possible file sizes.
+                        // TODO : use `Percentage` type
+                        #[expect(clippy::cast_precision_loss)]
+                        let progress = stream.current_position as f64 / file_size as f64;
 
-                            // OK to unwrap: see rationale above.
-                            *buffered.lock().unwrap() = duration.map(|duration| {
-                                duration
-                                    .mul_f64(progress)
-                                    // Subtract the prefetch duration to prevent seeks to a position
-                                    // just before the end of the buffered data. When the read block
-                                    // extends beyond the buffered data, the download would block to
-                                    // prefetch what is beyond the buffered data.
-                                    .saturating_sub(Self::PREFETCH_DURATION)
-                            });
-                        }
+                        // OK to unwrap: see rationale above.
+                        *buffered.lock().unwrap() = duration.map(|duration| {
+                            duration
+                                .mul_f64(progress)
+                                // Subtract the prefetch duration to prevent seeks to a position
+                                // just before the end of the buffered data. When the read block
+                                // extends beyond the buffered data, the download would block to
+                                // prefetch what is beyond the buffered data.
+                                .saturating_sub(Self::PREFETCH_DURATION)
+                        });
+                    }
                 }
                 _ => {
                     // Read requests are not allowed during prefetching, so don't

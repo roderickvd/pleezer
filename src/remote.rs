@@ -930,9 +930,10 @@ impl Client {
                             .map_or(0, |queue| queue.tracks.len())
                             .saturating_sub(self.player.position())
                             <= 2
-                            && let Err(e) = self.extend_queue().await {
-                                error!("error extending queue: {e}");
-                            }
+                            && let Err(e) = self.extend_queue().await
+                        {
+                            error!("error extending queue: {e}");
+                        }
                     }
 
                     if let Some(command) = command.as_mut() {
@@ -951,61 +952,61 @@ impl Client {
 
             Event::TrackChanged => {
                 if let Some(track) = self.player.track()
-                    && let Some(command) = command.as_mut() {
-                        let codec = track.codec().map_or("Unknown".to_string(), |codec| {
-                            codec.to_string().to_uppercase()
-                        });
+                    && let Some(command) = command.as_mut()
+                {
+                    let codec = track.codec().map_or("Unknown".to_string(), |codec| {
+                        codec.to_string().to_uppercase()
+                    });
 
-                        let bitrate = track.bitrate();
-                        let bitrate = match bitrate {
-                            Some(bitrate) => {
-                                if bitrate >= 1000 {
-                                    format!(" {}M", bitrate.to_f32_lossy() / 1000.)
-                                } else {
-                                    format!(" {bitrate}K")
-                                }
+                    let bitrate = track.bitrate();
+                    let bitrate = match bitrate {
+                        Some(bitrate) => {
+                            if bitrate >= 1000 {
+                                format!(" {}M", bitrate.to_f32_lossy() / 1000.)
+                            } else {
+                                format!(" {bitrate}K")
                             }
-                            // If bitrate is unknown, show codec only.
-                            None => String::default(),
-                        };
-
-                        let channels =
-                            match track.channels.unwrap_or(track.typ().default_channels()) {
-                                1 => "Mono".to_string(),
-                                2 => "Stereo".to_string(),
-                                3 => "2.1 Stereo".to_string(),
-                                6 => "5.1 Surround Sound".to_string(),
-                                other => format!("{other} channels"),
-                            };
-                        let decoded = format!(
-                            "PCM {} bit {} kHz, {channels}",
-                            track.bits_per_sample.unwrap_or(DEFAULT_BITS_PER_SAMPLE),
-                            track
-                                .sample_rate
-                                .unwrap_or(DEFAULT_SAMPLE_RATE)
-                                .to_f32_lossy()
-                                / 1000.0,
-                        );
-
-                        command
-                            .env("EVENT", "track_changed")
-                            .env("TRACK_TYPE", track.typ().to_string())
-                            .env("TRACK_ID", track.id().to_string())
-                            .env("ARTIST", track.artist())
-                            .env("COVER_ID", track.cover_id())
-                            .env("FORMAT", format!("{codec}{bitrate}"))
-                            .env("DECODER", decoded);
-
-                        if let Some(title) = track.title() {
-                            command.env("TITLE", title);
                         }
-                        if let Some(album_title) = track.album_title() {
-                            command.env("ALBUM_TITLE", album_title);
-                        }
-                        if let Some(duration) = track.duration() {
-                            command.env("DURATION", duration.as_secs().to_string());
-                        }
+                        // If bitrate is unknown, show codec only.
+                        None => String::default(),
+                    };
+
+                    let channels = match track.channels.unwrap_or(track.typ().default_channels()) {
+                        1 => "Mono".to_string(),
+                        2 => "Stereo".to_string(),
+                        3 => "2.1 Stereo".to_string(),
+                        6 => "5.1 Surround Sound".to_string(),
+                        other => format!("{other} channels"),
+                    };
+                    let decoded = format!(
+                        "PCM {} bit {} kHz, {channels}",
+                        track.bits_per_sample.unwrap_or(DEFAULT_BITS_PER_SAMPLE),
+                        track
+                            .sample_rate
+                            .unwrap_or(DEFAULT_SAMPLE_RATE)
+                            .to_f32_lossy()
+                            / 1000.0,
+                    );
+
+                    command
+                        .env("EVENT", "track_changed")
+                        .env("TRACK_TYPE", track.typ().to_string())
+                        .env("TRACK_ID", track.id().to_string())
+                        .env("ARTIST", track.artist())
+                        .env("COVER_ID", track.cover_id())
+                        .env("FORMAT", format!("{codec}{bitrate}"))
+                        .env("DECODER", decoded);
+
+                    if let Some(title) = track.title() {
+                        command.env("TITLE", title);
                     }
+                    if let Some(album_title) = track.album_title() {
+                        command.env("ALBUM_TITLE", album_title);
+                    }
+                    if let Some(duration) = track.duration() {
+                        command.env("DURATION", duration.as_secs().to_string());
+                    }
+                }
             }
 
             Event::Connected => {
@@ -1104,9 +1105,10 @@ impl Client {
     /// * Unsubscribes from channels
     pub async fn stop(&mut self) {
         if self.is_connected()
-            && let Err(e) = self.disconnect().await {
-                error!("error disconnecting: {e}");
-            }
+            && let Err(e) = self.disconnect().await
+        {
+            error!("error disconnecting: {e}");
+        }
 
         // Handle any remaining events without closing the event channel,
         // so it will work when the client is restarted.
@@ -1867,10 +1869,12 @@ impl Client {
             }
 
             // Refresh the queue if the shuffle mode has changed.
-            if refresh_queue && self.queue.as_ref().map(|queue| queue.shuffled) == set_shuffle
-                && let Err(e) = self.refresh_queue().await {
-                    error!("error refreshing queue: {e}");
-                }
+            if refresh_queue
+                && self.queue.as_ref().map(|queue| queue.shuffled) == set_shuffle
+                && let Err(e) = self.refresh_queue().await
+            {
+                error!("error refreshing queue: {e}");
+            }
 
             // Report playback progress regardless of the state setting result - it can be that
             // *some* state was set, but not all of it.
@@ -1912,9 +1916,10 @@ impl Client {
         let mut position = position;
         if let Some(queue) = self.queue.as_ref()
             && queue.shuffled
-                && let Some(ordered) = queue.tracks_order.get(position) {
-                    position = *ordered as usize;
-                }
+            && let Some(ordered) = queue.tracks_order.get(position)
+        {
+            position = *ordered as usize;
+        }
 
         self.player.set_position(position);
     }
@@ -1989,40 +1994,41 @@ impl Client {
         // then we just skipped to it and we need the player to let it start playing from the
         // beginning.
         if target == current
-            && let Some(progress) = progress {
-                if self
-                    .player
-                    .track()
-                    .is_some_and(super::track::Track::is_livestream)
-                {
-                    trace!("ignoring set_progress for livestream");
-                } else if let Err(e) = self.player.set_progress(progress) {
-                    error!("error setting playback position: {e}");
-                    result = Err(e);
-                }
+            && let Some(progress) = progress
+        {
+            if self
+                .player
+                .track()
+                .is_some_and(super::track::Track::is_livestream)
+            {
+                trace!("ignoring set_progress for livestream");
+            } else if let Err(e) = self.player.set_progress(progress) {
+                error!("error setting playback position: {e}");
+                result = Err(e);
             }
+        }
 
         if let Some(shuffle) = set_shuffle
             && self
                 .queue
                 .as_ref()
                 .is_some_and(|queue| queue.shuffled != shuffle)
-            {
-                if shuffle {
-                    self.shuffle_queue(ShuffleAction::Shuffle);
-                } else {
-                    self.shuffle_queue(ShuffleAction::Unshuffle);
-                }
-
-                if let Some(queue) = self.queue.as_mut() {
-                    let reordered_queue: Vec<_> = queue
-                        .tracks
-                        .iter()
-                        .filter_map(|track| track.id.parse().ok())
-                        .collect();
-                    self.player.reorder_queue(&reordered_queue);
-                }
+        {
+            if shuffle {
+                self.shuffle_queue(ShuffleAction::Shuffle);
+            } else {
+                self.shuffle_queue(ShuffleAction::Unshuffle);
             }
+
+            if let Some(queue) = self.queue.as_mut() {
+                let reordered_queue: Vec<_> = queue
+                    .tracks
+                    .iter()
+                    .filter_map(|track| track.id.parse().ok())
+                    .collect();
+                self.player.reorder_queue(&reordered_queue);
+            }
+        }
 
         if let Some(repeat_mode) = set_repeat_mode {
             self.player.set_repeat_mode(repeat_mode);
@@ -2317,15 +2323,14 @@ impl Client {
                                     if value.user == self.user_id()
                                         && let ConnectionState::Connected { session_id, .. } =
                                             self.connection_state
-                                            && value.uuid != session_id {
-                                                warn!(
-                                                    "playback started on another device; disconnecting",
-                                                );
-                                                if let Err(e) = self.disconnect().await {
-                                                    error!("error disconnecting: {e}");
-                                                    return ControlFlow::Break(e);
-                                                }
-                                            }
+                                        && value.uuid != session_id
+                                    {
+                                        warn!("playback started on another device; disconnecting",);
+                                        if let Err(e) = self.disconnect().await {
+                                            error!("error disconnecting: {e}");
+                                            return ControlFlow::Break(e);
+                                        }
+                                    }
                                 }
 
                                 return ControlFlow::Continue(());

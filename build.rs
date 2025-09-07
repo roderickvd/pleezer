@@ -17,25 +17,26 @@ use time::OffsetDateTime;
 
 fn main() {
     if let Ok(repo) = Repository::open(".")
-        && let Some(commit) = repo.head().ok().and_then(|head| head.peel_to_commit().ok()) {
-            if let Some(hash) = commit
-                .as_object()
-                .short_id()
-                .ok()
-                .and_then(|buf| buf.as_str().map(|s| s.to_string()))
-            {
-                println!("cargo:rustc-env=PLEEZER_COMMIT_HASH={hash}");
-            }
-
-            if let Ok(timestamp) = OffsetDateTime::from_unix_timestamp(commit.time().seconds()) {
-                let format = time::format_description::parse("[year]-[month]-[day]")
-                    .expect("invalid date format string");
-                println!(
-                    "cargo:rustc-env=PLEEZER_COMMIT_DATE={}",
-                    timestamp.format(&format).expect("could not format date")
-                );
-            }
+        && let Some(commit) = repo.head().ok().and_then(|head| head.peel_to_commit().ok())
+    {
+        if let Some(hash) = commit
+            .as_object()
+            .short_id()
+            .ok()
+            .and_then(|buf| buf.as_str().map(|s| s.to_string()))
+        {
+            println!("cargo:rustc-env=PLEEZER_COMMIT_HASH={hash}");
         }
+
+        if let Ok(timestamp) = OffsetDateTime::from_unix_timestamp(commit.time().seconds()) {
+            let format = time::format_description::parse("[year]-[month]-[day]")
+                .expect("invalid date format string");
+            println!(
+                "cargo:rustc-env=PLEEZER_COMMIT_DATE={}",
+                timestamp.format(&format).expect("could not format date")
+            );
+        }
+    }
 
     let proto_dir = Path::new("src/protocol/connect/protos");
     protobuf_codegen::Codegen::new()

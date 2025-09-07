@@ -2445,9 +2445,10 @@ impl fmt::Display for Payload {
         } else {
             // Do not Base64 encode empty strings.
             if let Payload::String(s) = self
-                && s.as_ref().is_none_or(String::is_empty) {
-                    return Ok(());
-                }
+                && s.as_ref().is_none_or(String::is_empty)
+            {
+                return Ok(());
+            }
 
             if let Err(e) = serde_json::to_writer(&mut buffer, self) {
                 error!("{e}");

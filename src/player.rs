@@ -779,29 +779,30 @@ impl Player {
             if let Ok(devices) = host.output_devices() {
                 for device in devices {
                     if let Ok(device_name) = device.name()
-                        && let Ok(configs) = device.supported_output_configs() {
-                            for config in configs {
-                                if config.channels() == 2
-                                    && Self::SAMPLE_FORMATS.contains(&config.sample_format())
-                                {
-                                    for sample_rate in &Self::SAMPLE_RATES {
-                                        if let Some(config) = config
-                                            .try_with_sample_rate(cpal::SampleRate(*sample_rate))
-                                        {
-                                            let line = format!(
-                                                "{}|{}|{}|{}",
-                                                host.id().name(),
-                                                device_name,
-                                                config.sample_rate().0,
-                                                config.sample_format(),
-                                            );
+                        && let Ok(configs) = device.supported_output_configs()
+                    {
+                        for config in configs {
+                            if config.channels() == 2
+                                && Self::SAMPLE_FORMATS.contains(&config.sample_format())
+                            {
+                                for sample_rate in &Self::SAMPLE_RATES {
+                                    if let Some(config) =
+                                        config.try_with_sample_rate(cpal::SampleRate(*sample_rate))
+                                    {
+                                        let line = format!(
+                                            "{}|{}|{}|{}",
+                                            host.id().name(),
+                                            device_name,
+                                            config.sample_rate().0,
+                                            config.sample_format(),
+                                        );
 
-                                            result.push(line);
-                                        }
+                                        result.push(line);
                                     }
                                 }
                             }
                         }
+                    }
                 }
             }
         }
@@ -913,9 +914,10 @@ impl Player {
         // file.
         let mut ram_usage = self.track().and_then(Track::file_size).unwrap_or(0);
         if let Some(max_ram) = self.max_ram
-            && ram_usage > max_ram {
-                ram_usage = 0;
-            }
+            && ram_usage > max_ram
+        {
+            ram_usage = 0;
+        }
 
         let track = self
             .queue
@@ -944,23 +946,24 @@ impl Player {
                 // track is not a livestream.
                 let mut buffer_size = track.prefetch_size();
                 if let Some(max_ram) = self.max_ram
-                    && !track.is_livestream() {
-                        let ram_left = max_ram
-                            .saturating_sub(ram_usage)
-                            .try_into()
-                            .unwrap_or(usize::MAX);
+                    && !track.is_livestream()
+                {
+                    let ram_left = max_ram
+                        .saturating_sub(ram_usage)
+                        .try_into()
+                        .unwrap_or(usize::MAX);
 
-                        debug!(
-                            "memory reserved before start of download: {} KB, left: {} KB",
-                            ram_usage / 1024,
-                            ram_left / 1024
-                        );
+                    debug!(
+                        "memory reserved before start of download: {} KB, left: {} KB",
+                        ram_usage / 1024,
+                        ram_left / 1024
+                    );
 
-                        // never go below the prefetch size that was set before
-                        if ram_left > buffer_size {
-                            buffer_size = ram_left;
-                        }
+                    // never go below the prefetch size that was set before
+                    if ram_left > buffer_size {
+                        buffer_size = ram_left;
                     }
+                }
 
                 // This will set up the storage as follows:
                 // - livestreams: stored in RAM, bounded by the prefetch size
@@ -991,9 +994,10 @@ impl Player {
                 // Set the track position only if `progress` is beyond the track start. We start
                 // at the beginning anyway, and this prevents decoder errors.
                 if !progress.is_zero()
-                    && let Err(e) = decoder.try_seek(progress) {
-                        error!("failed to seek to deferred position: {e}");
-                    }
+                    && let Err(e) = decoder.try_seek(progress)
+                {
+                    error!("failed to seek to deferred position: {e}");
+                }
             }
 
             // Apply volume normalization if enabled.
@@ -1123,10 +1127,11 @@ impl Player {
         loop {
             // Check for stream errors and handle them.
             if let Some(error_rx) = &mut self.stream_error_rx
-                && let Ok(err) = error_rx.try_recv() {
-                    error_rx.close(); // Close the channel to prevent further errors.
-                    return Err(err.into());
-                }
+                && let Ok(err) = error_rx.try_recv()
+            {
+                error_rx.close(); // Close the channel to prevent further errors.
+                return Err(err.into());
+            }
 
             match self.current_rx.as_mut() {
                 Some(current_rx) => {
@@ -1244,9 +1249,10 @@ impl Player {
     /// Failures are logged but do not interrupt playback.
     fn notify(&self, event: Event) {
         if let Some(event_tx) = &self.event_tx
-            && let Err(e) = event_tx.send(event) {
-                error!("failed to send event: {e}");
-            }
+            && let Err(e) = event_tx.send(event)
+        {
+            error!("failed to send event: {e}");
+        }
     }
 
     /// Registers an event notification channel.
@@ -1739,9 +1745,10 @@ impl Player {
             self.dithered_volume.set_volume(log_target);
 
             if let Some(dither_bits) = self.dithered_volume.effective_bit_depth()
-                && target > 0.0 {
-                    debug!("volume control dither: {dither_bits:.1} bits");
-                }
+                && target > 0.0
+            {
+                debug!("volume control dither: {dither_bits:.1} bits");
+            }
         }
 
         original_volume
@@ -1832,15 +1839,16 @@ impl Player {
             // If the requested position is beyond what is buffered, seek to the buffered
             // position instead. This prevents blocking the player and disconnections.
             if !track.is_complete()
-                && let Some(buffered) = track.buffered() {
-                    if position > buffered {
-                        position = buffered;
-                    }
-
-                    let minutes = position.as_secs() / 60;
-                    let seconds = position.as_secs() % 60;
-                    warn!("limiting seek to {minutes:02}:{seconds:02} due to buffering");
+                && let Some(buffered) = track.buffered()
+            {
+                if position > buffered {
+                    position = buffered;
                 }
+
+                let minutes = position.as_secs() / 60;
+                let seconds = position.as_secs() % 60;
+                warn!("limiting seek to {minutes:02}:{seconds:02} due to buffering");
+            }
 
             // Try to seek only if the track has started downloading, otherwise defer the seek.
             // This prevents stalling the player when seeking in a track that has not started.
