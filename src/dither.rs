@@ -581,6 +581,7 @@ where
 /// # Returns
 ///
 /// The signal with rounding compensation applied, ready for truncating conversion
+// TODO: remove when https://github.com/RustAudio/dasp/pull/191 is merged
 #[inline]
 #[must_use]
 fn quantize(signal: f32, quantization_step: f32) -> f32 {
