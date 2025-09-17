@@ -7,8 +7,14 @@ and [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/).
 
 ## Unreleased
 
+### Added
+- [player] Support S24 output format (24-bit signed integer stored on 4 bytes)
+
 ### Changed
 - [deps] Switched from rustls to system native TLS
+
+### Fixed
+- [dither] Correctly round dithered samples for lower noise floor
 
 ## [v0.19.1] - 2025-07-27
 

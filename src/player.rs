@@ -653,14 +653,14 @@ impl Player {
             })
             .or_else(|| {
                 // Set a default dithering level
-                use cpal::SampleFormat::{I8, I16, I32, I64, U8, U16, U32, U64};
+                use cpal::SampleFormat::{I8, I16, I24, I32, I64, U8, U16, U32, U64};
                 let bits = match device_config.sample_format() {
                     // Very low fidelity, e.g., legacy or telephony
                     I8 | U8 => 7.0,
                     // Most DACs handling 16-bit do not achieve a true 16-bit SINAD
                     I16 | U16 => 15.5,
                     // Good delta-sigma DACs max out around 20–21 bits; 19.5 is safe
-                    I32 | U32 => 19.5,
+                    I24 | I32 | U32 => 19.5,
                     // No DAC supports more, this is purely for internal formats
                     I64 | U64 => 24.0,
                     // Floating point usually gets quantized later - don't dither here
@@ -734,10 +734,12 @@ impl Player {
     ///
     /// Only includes the three most common sample formats:
     /// * I16 - 16-bit signed integer
+    /// * I24 - 24-bit signed integer (stored in 4 bytes)
     /// * I32 - 32-bit signed integer
     /// * F32 - 32-bit floating point
-    const SAMPLE_FORMATS: [cpal::SampleFormat; 3] = [
+    const SAMPLE_FORMATS: [cpal::SampleFormat; 4] = [
         cpal::SampleFormat::I16,
+        cpal::SampleFormat::I24,
         cpal::SampleFormat::I32,
         cpal::SampleFormat::F32,
     ];
@@ -754,6 +756,7 @@ impl Player {
     ///   - 44.1 kHz (CD audio, streaming services)
     ///   - 48 kHz (professional audio, video production)
     ///   - I16 (16-bit integer)
+    ///   - I24 (24-bit integer stored in 4 bytes)
     ///   - I32 (32-bit integer)
     ///   - F32 (32-bit float)
     /// * Stereo output (2 channels)
