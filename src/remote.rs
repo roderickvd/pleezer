@@ -2219,7 +2219,7 @@ impl Client {
                 }
 
                 let item = QueueItem {
-                    queue_id: queue.id.to_string(),
+                    queue_id: queue.id.clone(),
                     track_id: track.id(),
                     position,
                 };
