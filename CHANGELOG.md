@@ -12,6 +12,7 @@ and [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/).
 
 ### Changed
 - [deps] Switched from rustls to system native TLS
+- [player] Playback latency uses device defaults
 
 ### Fixed
 - [dither] Correctly round dithered samples for lower noise floor
